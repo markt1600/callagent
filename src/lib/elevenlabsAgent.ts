@@ -42,7 +42,15 @@ Guidelines:
 /** Per-call task brief, with all reservation specifics baked in. */
 function taskInstructions(req: ReservationRequest, purpose: "book" | "cancel"): string {
   if (purpose === "cancel") {
-    return `Cancel an existing reservation. ${req.callerName} has a booking at ${req.restaurantName} for ${req.partySize} people on ${req.date} at ${req.time} and needs to cancel it. Apologize briefly for the inconvenience, ask them to cancel the booking under the name ${req.callerName}, make sure the staff clearly confirms the reservation is cancelled, thank them sincerely, and end the call. Do NOT make any new reservation on this call.`;
+    // Cancel the slot that was ACTUALLY booked — the restaurant may have
+    // confirmed a different time than originally requested.
+    const bookedDate = req.outcome?.confirmedDate ?? req.date;
+    const bookedTime = req.outcome?.confirmedTime ?? req.time;
+    const requestedNote =
+      bookedTime !== req.time
+        ? ` (the booking was originally requested for ${req.time} but was confirmed at ${bookedTime} — refer to ${bookedTime} when speaking with the staff)`
+        : "";
+    return `Cancel an existing reservation. ${req.callerName} has a booking at ${req.restaurantName} for ${req.partySize} people on ${bookedDate} at ${bookedTime}${requestedNote} and needs to cancel it. Apologize briefly for the inconvenience, ask them to cancel the booking under the name ${req.callerName}, make sure the staff clearly confirms the reservation is cancelled, thank them sincerely, and end the call. Do NOT make any new reservation on this call.`;
   }
   const earliest = req.timeWindowStart ?? req.time;
   const latest = req.timeWindowEnd ?? req.time;

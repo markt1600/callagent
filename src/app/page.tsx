@@ -393,7 +393,11 @@ export default function Dashboard() {
                   <span className={`badge ${r.status}`}>{r.status.replace("_", " ")}</span>
                 </div>
                 <div className="meta">
-                  {r.partySize} pax · {r.date} {r.time} · {r.phoneNumber}
+                  {r.partySize} pax · {r.date} {r.time}
+                  {r.outcome?.confirmedTime && r.outcome.confirmedTime !== r.time
+                    ? ` (booked ${r.outcome.confirmedTime})`
+                    : ""}{" "}
+                  · {r.phoneNumber}
                 </div>
                 {r.outcome && (
                   <div className="meta">

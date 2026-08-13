@@ -28,10 +28,12 @@ function speakerLabel(speaker: string): string {
 function buildEmail(reservation: ReservationRequest, call: CallSession | null) {
   const cancelled = reservation.status === "cancelled";
   const ok = reservation.outcome?.success;
+  const bookedDate = reservation.outcome?.confirmedDate ?? reservation.date;
+  const bookedTime = reservation.outcome?.confirmedTime ?? reservation.time;
   const subject = cancelled
-    ? `🗑️ Reservation cancelled — ${reservation.restaurantName}, ${reservation.date} ${reservation.time}`
+    ? `🗑️ Reservation cancelled — ${reservation.restaurantName}, ${bookedDate} ${bookedTime}`
     : ok
-      ? `✅ Reservation confirmed — ${reservation.restaurantName}, ${reservation.date} ${reservation.time}`
+      ? `✅ Reservation confirmed — ${reservation.restaurantName}, ${bookedDate} ${bookedTime}`
       : `⚠️ Reservation not confirmed — ${reservation.restaurantName}`;
 
   const transcriptRows = (call?.turns ?? [])
@@ -53,7 +55,11 @@ function buildEmail(reservation: ReservationRequest, call: CallSession | null) {
     <p style="margin:4px 0 16px;color:#556">${escapeHtml(reservation.outcome?.summary ?? "The call has completed — please review the transcript below.")}</p>
     <table style="border-collapse:collapse;background:#f6f7f9;border-radius:8px;width:100%;margin-bottom:20px">
       <tr><td style="padding:8px 12px;color:#889">Restaurant</td><td style="padding:8px 12px"><b>${escapeHtml(reservation.restaurantName)}</b></td></tr>
-      <tr><td style="padding:8px 12px;color:#889">Date &amp; time</td><td style="padding:8px 12px"><b>${escapeHtml(reservation.date)} ${escapeHtml(reservation.time)}</b></td></tr>
+      <tr><td style="padding:8px 12px;color:#889">Date &amp; time</td><td style="padding:8px 12px"><b>${escapeHtml(reservation.outcome?.confirmedDate ?? reservation.date)} ${escapeHtml(reservation.outcome?.confirmedTime ?? reservation.time)}</b>${
+        reservation.outcome?.confirmedTime && reservation.outcome.confirmedTime !== reservation.time
+          ? ` <span style="color:#889;font-size:12px">(originally requested ${escapeHtml(reservation.time)})</span>`
+          : ""
+      }</td></tr>
       <tr><td style="padding:8px 12px;color:#889">Party size</td><td style="padding:8px 12px"><b>${reservation.partySize}</b></td></tr>
       <tr><td style="padding:8px 12px;color:#889">Booking name</td><td style="padding:8px 12px"><b>${escapeHtml(reservation.callerName)}</b></td></tr>
       ${reservation.contactPhone ? `<tr><td style="padding:8px 12px;color:#889">Contact number</td><td style="padding:8px 12px"><b>${escapeHtml(reservation.contactPhone)}</b></td></tr>` : ""}

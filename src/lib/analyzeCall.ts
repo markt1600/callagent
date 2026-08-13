@@ -48,7 +48,7 @@ export async function analyzeOutcome(
     purpose === "cancel"
       ? `Audit this phone call and decide whether an existing reservation was actually CANCELLED.
 
-The agent was calling ${reservation.restaurantName} to cancel the booking under ${reservation.callerName} for ${reservation.partySize} on ${reservation.date} at ${reservation.time}.
+The agent was calling ${reservation.restaurantName} to cancel the booking under ${reservation.callerName} for ${reservation.partySize} on ${reservation.outcome?.confirmedDate ?? reservation.date} at ${reservation.outcome?.confirmedTime ?? reservation.time}.
 
 Transcript:
 ${transcript}
