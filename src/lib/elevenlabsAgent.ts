@@ -84,6 +84,25 @@ const LANGUAGE_NAMES: Record<string, string> = {
   zh: "Mandarin Chinese",
 };
 
+// Spoken the instant the call connects (the agent's First message in the
+// ElevenLabs dashboard is set to {{first_message}}, so this is fully
+// app-controlled per language AND per task — no dead air, no LLM latency,
+// and no generic wording compromise between booking and cancelling.
+const FIRST_MESSAGES: Record<string, Record<"book" | "cancel", string>> = {
+  ja: {
+    book: "お世話になります。予約をお願いしたく、お電話いたしました。",
+    cancel: "お世話になります。予約のキャンセルの件でお電話いたしました。",
+  },
+  en: {
+    book: "Hello! I'm calling to make a dinner reservation.",
+    cancel: "Hello! I'm calling about cancelling an existing reservation.",
+  },
+  zh: {
+    book: "你好，我想订个位子，麻烦您了。",
+    cancel: "你好，我想取消一个订位，麻烦您了。",
+  },
+};
+
 /** Place an outbound call through the ElevenLabs agent via Twilio. */
 export async function placeAgentCall(
   req: ReservationRequest,
@@ -101,6 +120,7 @@ export async function placeAgentCall(
       caller_name: req.callerName,
       call_language: LANGUAGE_NAMES[req.language] ?? "English",
       task_instructions: taskInstructions(req, purpose),
+      first_message: (FIRST_MESSAGES[req.language] ?? FIRST_MESSAGES.en)[purpose],
       party_size: String(req.partySize),
       reservation_date: req.date,
       reservation_time: req.time,
