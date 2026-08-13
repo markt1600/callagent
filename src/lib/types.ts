@@ -11,8 +11,12 @@ export interface ReservationRequest {
   partySize: number;
   /** ISO date, e.g. 2026-08-20 */
   date: string;
-  /** e.g. 19:00 */
+  /** Preferred seating time, e.g. 19:00 */
   time: string;
+  /** Earliest acceptable seating time (defaults to 1h before preferred) */
+  timeWindowStart?: string;
+  /** Latest acceptable seating time (defaults to 1h after preferred) */
+  timeWindowEnd?: string;
   /** Language the call should be conducted in */
   language: SupportedLanguage;
   callerName: string;

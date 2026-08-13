@@ -5,6 +5,7 @@ import { setJSON, listJSON } from "@/lib/store";
 import { dispatchCall } from "@/lib/dispatch";
 import { ensurePhrasePacks } from "@/lib/preparePhrases";
 import { isWithinCallWindow, nextCallWindowTime } from "@/lib/callWindow";
+import { shiftHHMM } from "@/lib/timeUtils";
 import type { ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -85,6 +86,12 @@ async function handleCreate(request: NextRequest) {
     partySize: Number(body.partySize),
     date: body.date,
     time: body.time,
+    timeWindowStart: /^\d{1,2}:\d{2}$/.test(body.timeWindowStart ?? "")
+      ? body.timeWindowStart
+      : shiftHHMM(body.time, -60),
+    timeWindowEnd: /^\d{1,2}:\d{2}$/.test(body.timeWindowEnd ?? "")
+      ? body.timeWindowEnd
+      : shiftHHMM(body.time, 60),
     language: body.language === "en" ? "en" : body.language === "zh" ? "zh" : "ja",
     callerName: body.callerName,
     contactPhone: body.contactPhone || undefined,

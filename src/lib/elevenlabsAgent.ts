@@ -13,6 +13,7 @@
 // The agent prompt should reference the dynamic variables passed below.
 
 import { config, requireEnv } from "./config";
+import { shiftHHMM } from "./timeUtils";
 import type { ReservationRequest } from "./types";
 
 const API = "https://api.elevenlabs.io";
@@ -36,7 +37,7 @@ Guidelines:
 - If the person answering speaks a different language than {{call_language}} (for example they answer in Mandarin), switch to their language immediately and conduct the rest of the call in it.
 - State the full request early: date, time, party size.
 - The booking name is {{caller_name}}. The guest's contact number is: {{callback_number}}. If asked for a phone number, give that contact number and no other — never give the number you are calling from. If the contact number is "not available", apologize and offer the booking name instead.
-- If the requested slot is unavailable, ask what nearby times are available that day, and accept a slot within one hour of the requested time; otherwise politely decline and end the call.
+- If the requested slot is unavailable, ask what times are available that day. Accept the closest available slot between {{acceptable_earliest}} and {{acceptable_latest}} without needing to check with anyone; if nothing in that range is available, politely decline and end the call.
 - Confirm the final reservation details back before ending the call.
 - Keep responses short — this is a phone call.`;
 }
@@ -69,6 +70,8 @@ export async function placeAgentCall(req: ReservationRequest): Promise<OutboundC
       party_size: String(req.partySize),
       reservation_date: req.date,
       reservation_time: req.time,
+      acceptable_earliest: req.timeWindowStart ?? shiftHHMM(req.time, -60),
+      acceptable_latest: req.timeWindowEnd ?? shiftHHMM(req.time, 60),
       special_requests: req.specialRequests
         ? `Special requests: ${req.specialRequests}`
         : "",

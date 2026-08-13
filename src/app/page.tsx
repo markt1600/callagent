@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { shiftHHMM } from "@/lib/timeUtils";
 import type { CallSession, ReservationRequest } from "@/lib/types";
 
 interface LibraryStats {
@@ -15,6 +16,8 @@ const EMPTY_FORM = {
   partySize: 2,
   date: "",
   time: "19:00",
+  timeWindowStart: "18:00",
+  timeWindowEnd: "20:00",
   language: "en",
   callerName: "",
   contactPhone: "",
@@ -34,6 +37,11 @@ export default function Dashboard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [operatorText, setOperatorText] = useState("");
+  const [adminPin, setAdminPin] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAdminPin(sessionStorage.getItem("adminPin"));
+  }, []);
 
   const selected = reservations.find((r) => r.id === selectedId) ?? null;
   const activeCall =
@@ -167,6 +175,36 @@ export default function Dashboard() {
     }
   }
 
+  function enterAdmin() {
+    const pin = window.prompt("Enter admin PIN");
+    if (!pin) return;
+    sessionStorage.setItem("adminPin", pin);
+    setAdminPin(pin);
+  }
+
+  function exitAdmin() {
+    sessionStorage.removeItem("adminPin");
+    setAdminPin(null);
+  }
+
+  async function deleteReservation(id: string) {
+    if (!adminPin) return;
+    if (!window.confirm("Delete this reservation and its call history?")) return;
+    setError(null);
+    const res = await fetch(`/api/reservations/${id}`, {
+      method: "DELETE",
+      headers: { "x-admin-pin": adminPin },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError((data as { error?: string }).error || `Delete failed (${res.status})`);
+      if (res.status === 401) exitAdmin();
+      return;
+    }
+    if (selectedId === id) setSelectedId(null);
+    await refresh();
+  }
+
   async function operatorAction(action: "take_over" | "resume_auto") {
     if (!activeCall) return;
     try {
@@ -179,7 +217,7 @@ export default function Dashboard() {
 
   return (
     <main>
-      <h1>CallAgent</h1>
+      <h1>Agentic Reservations</h1>
       <p className="sub">
         AI reservation agent for restaurants in Japan and Singapore — enter the details,
         and it calls the restaurant and books your table.
@@ -220,13 +258,41 @@ export default function Dashboard() {
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <label>Time</label>
+                <label>Preferred time</label>
                 <input
                   type="time"
                   value={form.time}
-                  onChange={(e) => setForm({ ...form, time: e.target.value })}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      time: e.target.value,
+                      timeWindowStart: shiftHHMM(e.target.value, -60),
+                      timeWindowEnd: shiftHHMM(e.target.value, 60),
+                    })
+                  }
                 />
               </div>
+            </div>
+            <label>
+              Acceptable seating range — if the preferred time is full, the agent accepts the
+              closest slot in this range
+            </label>
+            <div className="row">
+              <input
+                type="time"
+                value={form.timeWindowStart}
+                onChange={(e) => setForm({ ...form, timeWindowStart: e.target.value })}
+                style={{ flex: 1 }}
+              />
+              <span className="sub" style={{ margin: 0 }}>
+                to
+              </span>
+              <input
+                type="time"
+                value={form.timeWindowEnd}
+                onChange={(e) => setForm({ ...form, timeWindowEnd: e.target.value })}
+                style={{ flex: 1 }}
+              />
             </div>
             <label>Call language</label>
             <select
@@ -340,7 +406,21 @@ export default function Dashboard() {
               >
                 <div className="row" style={{ justifyContent: "space-between" }}>
                   <strong>{r.restaurantName}</strong>
-                  <span className={`badge ${r.status}`}>{r.status.replace("_", " ")}</span>
+                  <span className="row" style={{ gap: "0.4rem" }}>
+                    <span className={`badge ${r.status}`}>{r.status.replace("_", " ")}</span>
+                    {adminPin && (
+                      <button
+                        className="delete-btn"
+                        title="Delete reservation"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteReservation(r.id);
+                        }}
+                      >
+                        🗑
+                      </button>
+                    )}
+                  </span>
                 </div>
                 <div className="meta">
                   {r.partySize}名 · {r.date} {r.time} · {r.phoneNumber}
@@ -541,13 +621,29 @@ export default function Dashboard() {
               <h2>Select a reservation</h2>
               <p className="sub">
                 Create a reservation on the left — the AI agent calls the restaurant
-                immediately (or at your scheduled time) and the transcript and outcome appear
-                here when the call finishes.
+                immediately (or at your scheduled time). When the call finishes, open the
+                reservation to see its call log, transcript, and outcome; if you provided an
+                email, a confirmation with the transcript is sent there too.
               </p>
             </div>
           )}
         </div>
       </div>
+
+      <p className="sub" style={{ textAlign: "center", marginTop: "2.5rem", marginBottom: 0 }}>
+        {adminPin ? (
+          <>
+            Admin mode active — tap 🗑 on a reservation to delete it ·{" "}
+            <a className="admin-link" onClick={exitAdmin}>
+              Exit admin
+            </a>
+          </>
+        ) : (
+          <a className="admin-link" onClick={enterAdmin}>
+            Admin
+          </a>
+        )}
+      </p>
     </main>
   );
 }
