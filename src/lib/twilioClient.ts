@@ -1,6 +1,7 @@
 // Twilio helpers for IVR mode: outbound dialing and TwiML generation.
 
 import twilio from "twilio";
+import type VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 import { config, requireEnv } from "./config";
 
 export function twilioClient() {
@@ -29,7 +30,8 @@ export interface GatherStepOptions {
   playUrls?: string[];
   /** Where speech results are POSTed */
   actionPath: string;
-  language: "ja-JP" | "en-US";
+  /** Twilio speech-recognition locale, e.g. ja-JP, en-SG, en-US */
+  language: string;
   /** End the call after playing (no gather) */
   hangup?: boolean;
   /** Add a pause + redirect loop instead of gathering (operator relay hold) */
@@ -56,7 +58,7 @@ export function buildTwiml(opts: GatherStepOptions): string {
 
   const gather = vr.gather({
     input: ["speech"],
-    language: opts.language,
+    language: opts.language as VoiceResponse.GatherAttributes["language"],
     // "auto" ends capture quickly after the speaker stops — key latency lever.
     speechTimeout: "auto",
     speechModel: "experimental_conversations",

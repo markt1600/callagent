@@ -10,6 +10,7 @@ import {
   validateTwilioSignature,
 } from "@/lib/twilioClient";
 import { loadCall, loadReservation, handleRestaurantTurn } from "@/lib/callEngine";
+import { speechLocaleFor } from "@/lib/locale";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
 
   const transcript = form.SpeechResult ?? "";
   const confidence = form.Confidence ? Number(form.Confidence) : undefined;
-  const language = reservation.phrasePack.language === "en" ? "en-US" : "ja-JP";
+  const language = speechLocaleFor(reservation.phrasePack.language, reservation.phoneNumber);
   const gatherPath = `/api/twilio/gather?callId=${encodeURIComponent(callId)}`;
 
   const step = await handleRestaurantTurn(call, reservation, transcript, confidence);

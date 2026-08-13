@@ -182,6 +182,10 @@ export async function queueOperatorMessage(
 
 /** Translate any untranslated restaurant turns (called lazily from the dashboard). */
 export async function backfillTranslations(call: CallSession): Promise<CallSession> {
+  const reservation = await loadReservation(call.reservationId);
+  // English-language calls need no gloss — the transcript is already readable.
+  if ((reservation?.phrasePack?.language ?? "ja") === "en") return call;
+
   let dirty = false;
   for (const turn of call.turns) {
     if (turn.speaker === "restaurant" && !turn.english && turn.text.trim()) {

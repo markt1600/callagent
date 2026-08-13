@@ -372,7 +372,11 @@ export default function Dashboard() {
 
                   {activeCall.status === "in_progress" && activeCall.mode === "ivr" && (
                     <div style={{ marginTop: "0.9rem" }}>
-                      <label>Operator relay — type in English, spoken in Japanese</label>
+                      <label>
+                        {selected.language === "ja"
+                          ? "Operator relay — type in English, spoken in Japanese"
+                          : "Operator relay — type your reply, spoken on the call"}
+                      </label>
                       <textarea
                         value={operatorText}
                         onChange={(e) => setOperatorText(e.target.value)}
@@ -380,7 +384,7 @@ export default function Dashboard() {
                       />
                       <div className="row">
                         <button onClick={() => sendOperator(false)} disabled={busy !== null}>
-                          Send (translated)
+                          {selected.language === "ja" ? "Send (translated)" : "Send"}
                         </button>
                         <button
                           className="danger"

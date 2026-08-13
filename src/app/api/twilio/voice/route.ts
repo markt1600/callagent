@@ -10,6 +10,7 @@ import {
   validateTwilioSignature,
 } from "@/lib/twilioClient";
 import { loadCall, saveCall, loadReservation, phraseByCategory } from "@/lib/callEngine";
+import { speechLocaleFor } from "@/lib/locale";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     await saveCall(call);
   }
 
-  const language = reservation.phrasePack.language === "en" ? "en-US" : "ja-JP";
+  const language = speechLocaleFor(reservation.phrasePack.language, reservation.phoneNumber);
   return twimlResponse(
     buildTwiml({
       playUrls: greeting?.audioUrl ? [greeting.audioUrl] : [],

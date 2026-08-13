@@ -1,6 +1,8 @@
-# CallAgent — AI phone reservations for Japan
+# CallAgent — AI phone reservations (Japan & beyond)
 
-An AI agent that places **live telephone calls in Japan** (e.g. "call XXX to reach Restaurant Y and book a table for 2 on the 20th at 19:00, in Japanese"). Built with Next.js and deployed on **Vercel**, using **ElevenLabs** for speech, **Twilio** for telephony, and **Claude** for phrase generation, intent matching, and live translation.
+An AI agent that places **live telephone calls** (e.g. "call XXX to reach Restaurant Y and book a table for 2 on the 20th at 19:00, in Japanese"). Built with Next.js and deployed on **Vercel**, using **ElevenLabs** for speech, **Twilio** for telephony, and **Claude** for phrase generation, intent matching, and live translation.
+
+**Japanese and English work out of the box** — pick the call language per reservation. Japanese calls are scripted in natural keigo; English calls (e.g. restaurants in Singapore) are scripted in polite international English, and Twilio speech recognition automatically uses the accent-matched locale for the destination (+65 → `en-SG`, +44 → `en-GB`, +61 → `en-AU`, …). The phrase library keeps Japanese and English audio side by side, keyed per language.
 
 ## The core idea: pre-generate everything, cache forever
 
@@ -103,11 +105,18 @@ src/
 3. For IVR mode locally, expose the dev server (`ngrok http 3000`) and set `PUBLIC_BASE_URL` to the tunnel URL — Twilio must be able to reach the webhooks.
 4. Deploy: `vercel`, add the env vars, attach a Blob store and a KV/Upstash database. Storage falls back to `.data/` files locally, so no external services are needed for development besides the three APIs.
 
-### Calling Japan: compliance notes
+### Calling internationally: compliance notes
 
-- In the Twilio console, enable **Japan (+81)** under Voice Geographic Permissions before dialing.
-- Buying a Japanese caller-ID number requires identity documentation under Japanese telecom rules; calls also work from a US/other number, but a JP number materially improves answer rates.
+- In the Twilio console, enable each destination under **Voice Geographic Permissions** before dialing — e.g. **Japan (+81)** and **Singapore (+65)**.
+- Buying a local caller-ID number (JP or SG) requires identity documentation under local telecom rules; calls also work from a US/other number, but a local number materially improves answer rates.
 - Recording calls has consent requirements — this app stores transcripts, not audio recordings, of the counterparty.
+
+### Language notes
+
+- The per-reservation **Call language** selector drives everything: the phrase pack is scripted in that language, TTS uses the matching pronunciation hint, Twilio speech recognition picks the accent-matched locale from the destination country code, and Agent mode passes a language override per call.
+- For Agent mode, enable **both Japanese and English** as languages on your ElevenLabs agent (the per-call override selects between them).
+- Use a **multilingual ElevenLabs voice** for `ELEVENLABS_VOICE_ID` so one voice covers both languages (the default models, `eleven_multilingual_v2` / `eleven_flash_v2_5`, both support ja + en).
+- On English calls the operator relay skips translation — what you type is spoken verbatim — and transcripts don't get redundant English glosses.
 
 ## API quick reference
 
