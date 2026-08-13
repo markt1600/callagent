@@ -4,12 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { shiftHHMM } from "@/lib/timeUtils";
 import type { CallSession, ReservationRequest } from "@/lib/types";
 
-interface LibraryStats {
-  count: number;
-  totalHits: number;
-  reuseRate: number;
-}
-
 const EMPTY_FORM = {
   restaurantName: "",
   phoneNumber: "",
@@ -33,15 +27,9 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
   const [calls, setCalls] = useState<CallSession[]>([]);
-  const [library, setLibrary] = useState<LibraryStats | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [operatorText, setOperatorText] = useState("");
-  const [adminPin, setAdminPin] = useState<string | null>(null);
-
-  useEffect(() => {
-    setAdminPin(sessionStorage.getItem("adminPin"));
-  }, []);
 
   const selected = reservations.find((r) => r.id === selectedId) ?? null;
   const activeCall =
@@ -55,8 +43,6 @@ export default function Dashboard() {
       const res = await fetch("/api/reservations");
       const data = await res.json();
       setReservations(data.reservations ?? []);
-      const lib = await fetch("/api/library").then((r) => r.json());
-      setLibrary(lib);
     } catch {
       /* transient */
     }
@@ -173,36 +159,6 @@ export default function Dashboard() {
     } finally {
       setBusy(null);
     }
-  }
-
-  function enterAdmin() {
-    const pin = window.prompt("Enter admin PIN");
-    if (!pin) return;
-    sessionStorage.setItem("adminPin", pin);
-    setAdminPin(pin);
-  }
-
-  function exitAdmin() {
-    sessionStorage.removeItem("adminPin");
-    setAdminPin(null);
-  }
-
-  async function deleteReservation(id: string) {
-    if (!adminPin) return;
-    if (!window.confirm("Delete this reservation and its call history?")) return;
-    setError(null);
-    const res = await fetch(`/api/reservations/${id}`, {
-      method: "DELETE",
-      headers: { "x-admin-pin": adminPin },
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setError((data as { error?: string }).error || `Delete failed (${res.status})`);
-      if (res.status === 401) exitAdmin();
-      return;
-    }
-    if (selectedId === id) setSelectedId(null);
-    await refresh();
   }
 
   async function operatorAction(action: "take_over" | "resume_auto") {
@@ -375,29 +331,6 @@ export default function Dashboard() {
             {error && <p className="error">{error}</p>}
           </div>
 
-          {library && (
-            <div className="panel">
-              <h2>Phrase library</h2>
-              <div className="row" style={{ gap: "1.5rem" }}>
-                <div>
-                  <div className="stat">{library.count}</div>
-                  <div className="stat-label">cached phrases</div>
-                </div>
-                <div>
-                  <div className="stat">{library.totalHits}</div>
-                  <div className="stat-label">total uses</div>
-                </div>
-                <div>
-                  <div className="stat">{Math.round(library.reuseRate * 100)}%</div>
-                  <div className="stat-label">reuse rate</div>
-                </div>
-              </div>
-              <p className="sub" style={{ margin: "0.5rem 0 0" }}>
-                Grows with every call — common phrases are synthesized once, ever.
-              </p>
-            </div>
-          )}
-
           <div className="panel">
             <h2>Reservations</h2>
             {reservations.length === 0 && <p className="sub">None yet.</p>}
@@ -414,21 +347,7 @@ export default function Dashboard() {
               >
                 <div className="row" style={{ justifyContent: "space-between" }}>
                   <strong>{r.restaurantName}</strong>
-                  <span className="row" style={{ gap: "0.4rem" }}>
-                    <span className={`badge ${r.status}`}>{r.status.replace("_", " ")}</span>
-                    {adminPin && (
-                      <button
-                        className="delete-btn"
-                        title="Delete reservation"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteReservation(r.id);
-                        }}
-                      >
-                        🗑
-                      </button>
-                    )}
-                  </span>
+                  <span className={`badge ${r.status}`}>{r.status.replace("_", " ")}</span>
                 </div>
                 <div className="meta">
                   {r.partySize}名 · {r.date} {r.time} · {r.phoneNumber}
@@ -639,18 +558,9 @@ export default function Dashboard() {
       </div>
 
       <p className="sub" style={{ textAlign: "center", marginTop: "2.5rem", marginBottom: 0 }}>
-        {adminPin ? (
-          <>
-            Admin mode active — tap 🗑 on a reservation to delete it ·{" "}
-            <a className="admin-link" onClick={exitAdmin}>
-              Exit admin
-            </a>
-          </>
-        ) : (
-          <a className="admin-link" onClick={enterAdmin}>
-            Admin
-          </a>
-        )}
+        <a className="admin-link" href="/admin">
+          Admin
+        </a>
       </p>
     </main>
   );
