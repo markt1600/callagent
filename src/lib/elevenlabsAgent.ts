@@ -13,7 +13,6 @@
 // The agent prompt should reference the dynamic variables passed below.
 
 import { config, requireEnv } from "./config";
-import { shiftHHMM } from "./timeUtils";
 import type { ReservationRequest } from "./types";
 
 const API = "https://api.elevenlabs.io";
@@ -70,8 +69,10 @@ export async function placeAgentCall(req: ReservationRequest): Promise<OutboundC
       party_size: String(req.partySize),
       reservation_date: req.date,
       reservation_time: req.time,
-      acceptable_earliest: req.timeWindowStart ?? shiftHHMM(req.time, -60),
-      acceptable_latest: req.timeWindowEnd ?? shiftHHMM(req.time, 60),
+      // Without an explicit range, the window collapses to the exact
+      // preferred time — the agent accepts no alternatives.
+      acceptable_earliest: req.timeWindowStart ?? req.time,
+      acceptable_latest: req.timeWindowEnd ?? req.time,
       special_requests: req.specialRequests
         ? `Special requests: ${req.specialRequests}`
         : "",

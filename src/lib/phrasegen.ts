@@ -92,7 +92,11 @@ Reservation details:
 - Restaurant: ${req.restaurantName}
 - Party size: ${req.partySize}
 - Date: ${req.date}
-- Preferred time: ${req.time} (acceptable range: ${req.timeWindowStart ?? req.time} to ${req.timeWindowEnd ?? req.time} — if the preferred time is unavailable, accept the closest offered slot inside this range; include phrases for accepting an alternative time)
+- Preferred time: ${req.time}${
+    req.timeWindowStart && req.timeWindowEnd && (req.timeWindowStart !== req.time || req.timeWindowEnd !== req.time)
+      ? ` (acceptable range: ${req.timeWindowStart} to ${req.timeWindowEnd} — if the preferred time is unavailable, accept the closest offered slot inside this range; include phrases for accepting an alternative time)`
+      : ` (ONLY this exact time is acceptable — if it is unavailable, thank them politely and end the call; do not accept alternatives)`
+  }
 - Booking name: ${req.callerName}
 - Guest contact number: ${req.contactPhone ?? "not provided — if asked, apologize and offer the booking name instead"} (this is the ONLY phone number that may be given out; read it digit by digit in the phrase)
 ${req.specialRequests ? `- Special requests: ${req.specialRequests}` : ""}

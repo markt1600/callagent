@@ -16,8 +16,8 @@ const EMPTY_FORM = {
   partySize: 2,
   date: "",
   time: "19:00",
-  timeWindowStart: "18:00",
-  timeWindowEnd: "20:00",
+  timeWindowStart: "",
+  timeWindowEnd: "",
   language: "en",
   callerName: "",
   contactPhone: "",
@@ -240,7 +240,7 @@ export default function Dashboard() {
               placeholder="+81312345678"
             />
             <div className="row">
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: "1 1 90px", minWidth: 90 }}>
                 <label>Party size</label>
                 <input
                   type="number"
@@ -249,7 +249,7 @@ export default function Dashboard() {
                   onChange={(e) => setForm({ ...form, partySize: Number(e.target.value) })}
                 />
               </div>
-              <div style={{ flex: 2 }}>
+              <div style={{ flex: "2 1 150px", minWidth: 150 }}>
                 <label>Date</label>
                 <input
                   type="date"
@@ -257,32 +257,40 @@ export default function Dashboard() {
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
                 />
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: "1 1 130px", minWidth: 130 }}>
                 <label>Preferred time</label>
                 <input
                   type="time"
                   value={form.time}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      time: e.target.value,
-                      timeWindowStart: shiftHHMM(e.target.value, -60),
-                      timeWindowEnd: shiftHHMM(e.target.value, 60),
-                    })
-                  }
+                  onChange={(e) => setForm({ ...form, time: e.target.value })}
                 />
               </div>
             </div>
             <label>
-              Acceptable seating range — if the preferred time is full, the agent accepts the
-              closest slot in this range
+              Acceptable seating range (optional) — if the preferred time is full, the agent
+              accepts the closest slot in this range. Leave blank to accept only the exact
+              preferred time.
             </label>
             <div className="row">
+              <button
+                type="button"
+                className="secondary"
+                style={{ marginTop: 0, minHeight: 0, padding: "0.45rem 0.9rem", fontSize: "0.8rem" }}
+                onClick={() =>
+                  setForm({
+                    ...form,
+                    timeWindowStart: shiftHHMM(form.time, -60),
+                    timeWindowEnd: shiftHHMM(form.time, 60),
+                  })
+                }
+              >
+                ± 1 hour
+              </button>
               <input
                 type="time"
                 value={form.timeWindowStart}
                 onChange={(e) => setForm({ ...form, timeWindowStart: e.target.value })}
-                style={{ flex: 1 }}
+                style={{ flex: "1 1 120px", minWidth: 120 }}
               />
               <span className="sub" style={{ margin: 0 }}>
                 to
@@ -291,7 +299,7 @@ export default function Dashboard() {
                 type="time"
                 value={form.timeWindowEnd}
                 onChange={(e) => setForm({ ...form, timeWindowEnd: e.target.value })}
-                style={{ flex: 1 }}
+                style={{ flex: "1 1 120px", minWidth: 120 }}
               />
             </div>
             <label>Call language</label>
