@@ -403,24 +403,24 @@ export default function Dashboard() {
               </label>
               <div className="row" style={{ gap: "1rem" }}>
                 <label style={{ margin: 0, textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
-                  <input type="checkbox" style={{ width: "auto" }} checked={form.privateRoom}
+                  <input type="checkbox" checked={form.privateRoom}
                     onChange={(e) => setForm({ ...form, privateRoom: e.target.checked })} />
                   Private room required
                 </label>
                 <label style={{ margin: 0, textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
-                  <input type="checkbox" style={{ width: "auto" }} checked={form.quietTable}
+                  <input type="checkbox" checked={form.quietTable}
                     onChange={(e) => setForm({ ...form, quietTable: e.target.checked })} />
                   Quieter table preferred
                 </label>
               </div>
               <div className="row" style={{ gap: "1rem", marginTop: "0.4rem" }}>
                 <label style={{ margin: 0, textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
-                  <input type="checkbox" style={{ width: "auto" }} checked={form.accessibility}
+                  <input type="checkbox" checked={form.accessibility}
                     onChange={(e) => setForm({ ...form, accessibility: e.target.checked })} />
                   Wheelchair/stroller access
                 </label>
                 <label style={{ margin: 0, textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
-                  <input type="checkbox" style={{ width: "auto" }} checked={form.askCorkage}
+                  <input type="checkbox" checked={form.askCorkage}
                     onChange={(e) => setForm({ ...form, askCorkage: e.target.checked })} />
                   Ask corkage policy
                 </label>
@@ -434,7 +434,7 @@ export default function Dashboard() {
                 </div>
                 {form.kidsCount > 0 && (
                   <label style={{ margin: "1.4rem 0 0", textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
-                    <input type="checkbox" style={{ width: "auto" }} checked={form.kidsSeating}
+                    <input type="checkbox" checked={form.kidsSeating}
                       onChange={(e) => setForm({ ...form, kidsSeating: e.target.checked })} />
                     Kids seating needed
                   </label>
@@ -460,7 +460,7 @@ export default function Dashboard() {
               )}
               {form.occasion === "birthday" && (
                 <label style={{ margin: "0.6rem 0 0", textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
-                  <input type="checkbox" style={{ width: "auto" }} checked={form.birthdayCake}
+                  <input type="checkbox" checked={form.birthdayCake}
                     onChange={(e) => setForm({ ...form, birthdayCake: e.target.checked })} />
                   Ask if they can prepare a birthday cake (extra charge OK; fine if unavailable)
                 </label>
