@@ -60,7 +60,7 @@ const PhrasePackSchema = z.object({
 const LANGUAGE_STYLE = {
   ja: {
     name: "Japanese",
-    styleGuide: `use appropriate keigo for a customer calling a restaurant; write numbers, dates and times the way they are SPOKEN, e.g. 「8月20日水曜日、19時に2名」`,
+    styleGuide: `use appropriate keigo for a customer calling a restaurant; this is a BUSINESS call, so the greeting must open with 「お世話になります」 (never もしもし) and the goodbye must close with 「よろしくお願いいたします。失礼いたします」; write numbers, dates and times the way they are SPOKEN, e.g. 「8月20日水曜日、19時に2名」`,
     repeatExample: `("すみません、もう一度お願いします")`,
     holdExample: `("少々お待ちください")`,
     utteranceExample: `(e.g. ask_party_size → 「何名様」「何名様でしょうか」, keywords 「何名」「人数」)`,
