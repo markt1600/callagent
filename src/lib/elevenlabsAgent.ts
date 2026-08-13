@@ -47,6 +47,12 @@ export interface OutboundCallResult {
   raw: unknown;
 }
 
+const LANGUAGE_NAMES: Record<string, string> = {
+  ja: "Japanese",
+  en: "English",
+  zh: "Mandarin Chinese",
+};
+
 /** Place an outbound call through the ElevenLabs agent via Twilio. */
 export async function placeAgentCall(req: ReservationRequest): Promise<OutboundCallResult> {
   const agentId = requireEnv(config.elevenlabs.agentId, "ELEVENLABS_AGENT_ID");
@@ -55,39 +61,65 @@ export async function placeAgentCall(req: ReservationRequest): Promise<OutboundC
     "ELEVENLABS_AGENT_PHONE_NUMBER_ID",
   );
 
-  const languageName = req.language === "ja" ? "Japanese" : "English";
-  const res = await fetch(`${API}/v1/convai/twilio/outbound-call`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify({
-      agent_id: agentId,
-      agent_phone_number_id: phoneNumberId,
-      to_number: req.phoneNumber,
-      conversation_initiation_client_data: {
-        dynamic_variables: {
-          restaurant_name: req.restaurantName,
-          caller_name: req.callerName,
-          call_language: languageName,
-          party_size: String(req.partySize),
-          reservation_date: req.date,
-          reservation_time: req.time,
-          special_requests: req.specialRequests
-            ? `Special requests: ${req.specialRequests}`
-            : "",
-          callback_number: config.twilio.fromNumber,
-          reservation_id: req.id,
-        },
-        // Force the conversation language per call (agent must list it as enabled).
-        conversation_config_override: {
-          agent: { language: req.language },
-        },
-      },
-    }),
+  const clientData: Record<string, unknown> = {
+    dynamic_variables: {
+      restaurant_name: req.restaurantName,
+      caller_name: req.callerName,
+      call_language: LANGUAGE_NAMES[req.language] ?? "English",
+      party_size: String(req.partySize),
+      reservation_date: req.date,
+      reservation_time: req.time,
+      special_requests: req.specialRequests
+        ? `Special requests: ${req.specialRequests}`
+        : "",
+      callback_number: config.twilio.fromNumber,
+      reservation_id: req.id,
+    },
+    // Force the conversation language per call. Requires the "Language"
+    // override to be enabled in the agent's security/override settings.
+    conversation_config_override: {
+      agent: { language: req.language },
+    },
+  };
+
+  const attempt = (body: Record<string, unknown>) =>
+    fetch(`${API}/v1/convai/twilio/outbound-call`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify(body),
+    });
+
+  let res = await attempt({
+    agent_id: agentId,
+    agent_phone_number_id: phoneNumberId,
+    to_number: req.phoneNumber,
+    conversation_initiation_client_data: clientData,
   });
 
-  if (!res.ok) {
+  // If the agent doesn't permit language overrides, retry without one —
+  // the prompt's {{call_language}} variable still steers the language.
+  if (!res.ok && res.status < 500) {
+    const errText = await res.text();
+    if (/override/i.test(errText)) {
+      const { conversation_config_override: _dropped, ...withoutOverride } = clientData;
+      res = await attempt({
+        agent_id: agentId,
+        agent_phone_number_id: phoneNumberId,
+        to_number: req.phoneNumber,
+        conversation_initiation_client_data: withoutOverride,
+      });
+      if (!res.ok) {
+        throw new Error(
+          `ElevenLabs outbound call failed (${res.status}): ${await res.text()}`,
+        );
+      }
+    } else {
+      throw new Error(`ElevenLabs outbound call failed (${res.status}): ${errText}`);
+    }
+  } else if (!res.ok) {
     throw new Error(`ElevenLabs outbound call failed (${res.status}): ${await res.text()}`);
   }
+
   const data = (await res.json()) as {
     conversation_id?: string;
     callSid?: string;
