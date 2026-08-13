@@ -21,6 +21,10 @@ export interface ReservationRequest {
    * gives out when the restaurant asks for a phone number.
    */
   contactPhone?: string;
+  /** Where to email the confirmation + transcript once the call completes. */
+  notifyEmail?: string;
+  /** Set when the confirmation email has been sent (prevents duplicates). */
+  confirmationSentAt?: string;
   specialRequests?: string;
   /** Lifecycle status */
   status:

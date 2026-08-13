@@ -18,6 +18,7 @@ const EMPTY_FORM = {
   language: "ja",
   callerName: "",
   contactPhone: "",
+  notifyEmail: "",
   specialRequests: "",
   callTiming: "now" as "now" | "scheduled",
   callAt: "",
@@ -245,6 +246,13 @@ export default function Dashboard() {
               value={form.contactPhone}
               onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
               placeholder="+6591234567"
+            />
+            <label>Email confirmation to (optional)</label>
+            <input
+              type="email"
+              value={form.notifyEmail}
+              onChange={(e) => setForm({ ...form, notifyEmail: e.target.value })}
+              placeholder="you@example.com"
             />
             <label>Special requests (optional)</label>
             <textarea

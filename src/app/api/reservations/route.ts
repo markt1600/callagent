@@ -81,6 +81,10 @@ async function handleCreate(request: NextRequest) {
     language: body.language === "en" ? "en" : body.language === "zh" ? "zh" : "ja",
     callerName: body.callerName,
     contactPhone: body.contactPhone || undefined,
+    notifyEmail:
+      typeof body.notifyEmail === "string" && body.notifyEmail.includes("@")
+        ? body.notifyEmail.trim()
+        : undefined,
     specialRequests: body.specialRequests || undefined,
     status: callAt ? "scheduled" : "created",
     callAt,

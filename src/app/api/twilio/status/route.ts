@@ -3,7 +3,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { config } from "@/lib/config";
 import { parseTwilioForm, validateTwilioSignature } from "@/lib/twilioClient";
-import { loadCall, saveCall, loadReservation, saveReservation } from "@/lib/callEngine";
+import {
+  loadCall,
+  saveCall,
+  loadReservation,
+  saveReservation,
+  backfillTranslations,
+} from "@/lib/callEngine";
+import { sendConfirmation } from "@/lib/notify";
 
 export const runtime = "nodejs";
 
@@ -38,6 +45,14 @@ export async function POST(request: NextRequest) {
         };
       }
       await saveReservation(reservation);
+    }
+
+    // Email the requester the outcome + transcript (with English glosses).
+    try {
+      const translated = await backfillTranslations(call);
+      await sendConfirmation(call.reservationId, translated);
+    } catch (err) {
+      console.error("Confirmation send failed:", err);
     }
   }
   return NextResponse.json({ ok: true });

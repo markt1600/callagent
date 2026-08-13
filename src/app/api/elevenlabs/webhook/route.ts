@@ -6,6 +6,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { config } from "@/lib/config";
 import { listJSON, setJSON, getJSON } from "@/lib/store";
+import { sendConfirmation } from "@/lib/notify";
 import type { CallSession, ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -93,6 +94,12 @@ export async function POST(request: NextRequest) {
           "Call completed — see transcript for details.",
       };
       await setJSON(`res:${reservationId}`, reservation);
+    }
+    // Email the requester the outcome + transcript (no-op if not configured).
+    try {
+      await sendConfirmation(reservationId, call ?? null);
+    } catch (err) {
+      console.error("Confirmation send failed:", err);
     }
   }
 
