@@ -193,6 +193,7 @@ export default function Dashboard() {
 
   return (
     <main>
+      <div className="eyebrow">marktan.ai · phone concierge</div>
       <h1
         onClick={() => {
           setSelectedId(null);
@@ -201,7 +202,7 @@ export default function Dashboard() {
         style={{ cursor: "pointer" }}
         title="Back to overview"
       >
-        Agentic Reservations
+        Agentic <em>Reservations</em>
       </h1>
       <p className="sub">
         AI reservation agent for restaurants in Japan and Singapore — enter the details,

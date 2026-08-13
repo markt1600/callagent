@@ -100,7 +100,10 @@ export default function AdminPage() {
 
   return (
     <main style={{ maxWidth: 640 }}>
-      <h1>Admin</h1>
+      <div className="eyebrow">marktan.ai · phone concierge</div>
+      <h1>
+        <em>Admin</em>
+      </h1>
       <p className="sub">
         <a className="admin-link" href="/">
           ← Back to reservations

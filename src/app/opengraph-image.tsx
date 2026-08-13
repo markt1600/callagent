@@ -19,8 +19,8 @@ export default function OgImage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(160deg, #f5f5f7 0%, #eaf3ff 60%, #dcebff 100%)",
-          fontFamily: "sans-serif",
+          background: "linear-gradient(160deg, #f5efe2 0%, #efe6d5 60%, #e9dec9 100%)",
+          fontFamily: "Georgia, serif",
         }}
       >
         <div
@@ -31,8 +31,8 @@ export default function OgImage() {
             width: 160,
             height: 160,
             borderRadius: 40,
-            background: "linear-gradient(180deg, #2997ff 0%, #0071e3 100%)",
-            boxShadow: "0 20px 50px rgba(0, 113, 227, 0.35)",
+            background: "linear-gradient(180deg, #bb3b22 0%, #8f2c18 100%)",
+            boxShadow: "0 20px 50px rgba(143, 44, 24, 0.35)",
             fontSize: 84,
             marginBottom: 48,
           }}
@@ -43,7 +43,7 @@ export default function OgImage() {
           style={{
             fontSize: 76,
             fontWeight: 700,
-            color: "#1d1d1f",
+            color: "#211c15",
             letterSpacing: "-2px",
             display: "flex",
           }}
@@ -53,7 +53,7 @@ export default function OgImage() {
         <div
           style={{
             fontSize: 32,
-            color: "#6e6e73",
+            color: "#5a5142",
             marginTop: 18,
             display: "flex",
           }}
@@ -71,11 +71,11 @@ export default function OgImage() {
           <div
             style={{
               display: "flex",
-              background: "#ffffff",
+              background: "#fffdf7",
               borderRadius: 999,
               padding: "10px 28px",
-              color: "#1d1d1f",
-              boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+              color: "#211c15",
+              boxShadow: "0 4px 14px rgba(40,30,15,0.12)",
             }}
           >
             🇯🇵 日本語
@@ -83,11 +83,11 @@ export default function OgImage() {
           <div
             style={{
               display: "flex",
-              background: "#ffffff",
+              background: "#fffdf7",
               borderRadius: 999,
               padding: "10px 28px",
-              color: "#1d1d1f",
-              boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+              color: "#211c15",
+              boxShadow: "0 4px 14px rgba(40,30,15,0.12)",
             }}
           >
             🇸🇬 English
@@ -95,11 +95,11 @@ export default function OgImage() {
           <div
             style={{
               display: "flex",
-              background: "#ffffff",
+              background: "#fffdf7",
               borderRadius: 999,
               padding: "10px 28px",
-              color: "#1d1d1f",
-              boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+              color: "#211c15",
+              boxShadow: "0 4px 14px rgba(40,30,15,0.12)",
             }}
           >
             中文

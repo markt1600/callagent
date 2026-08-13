@@ -1,5 +1,23 @@
 import type { Metadata, Viewport } from "next";
+import { Fraunces, Newsreader, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "800"],
+  style: ["normal", "italic"],
+  variable: "--font-display",
+});
+const newsreader = Newsreader({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  variable: "--font-body",
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
+});
 
 const APP_NAME = "Agentic Reservations";
 const DESCRIPTION =
@@ -36,13 +54,16 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#f5f5f7",
+  themeColor: "#f5efe2",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={`${fraunces.variable} ${newsreader.variable} ${jetbrainsMono.variable}`}>
+        <div className="accent-bar" />
+        {children}
+      </body>
     </html>
   );
 }
