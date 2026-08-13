@@ -257,7 +257,22 @@ export default function Dashboard() {
                 onChange={(e) => setForm({ ...form, timeWindowEnd: e.target.value })}
                 style={{ flex: "1 1 120px", minWidth: 120 }}
               />
+              {(form.timeWindowStart || form.timeWindowEnd) && (
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ marginTop: 0, minHeight: 0, padding: "0.45rem 0.9rem", fontSize: "0.8rem" }}
+                  onClick={() => setForm({ ...form, timeWindowStart: "", timeWindowEnd: "" })}
+                >
+                  Clear
+                </button>
+              )}
             </div>
+            {!form.timeWindowStart && !form.timeWindowEnd && (
+              <p className="sub" style={{ margin: "0.3rem 0 0" }}>
+                No range set — only the exact preferred time will be accepted.
+              </p>
+            )}
             <label>Call language</label>
             <select
               value={form.language}
@@ -547,10 +562,10 @@ export default function Dashboard() {
             <div className="panel">
               <h2>Select a reservation</h2>
               <p className="sub">
-                Create a reservation on the left — the AI agent calls the restaurant
-                immediately (or at your scheduled time). When the call finishes, open the
-                reservation to see its call log, transcript, and outcome; if you provided an
-                email, a confirmation with the transcript is sent there too.
+                Fill in the reservation form to get started — the AI agent calls the
+                restaurant immediately (or at your scheduled time). When the call finishes,
+                open the reservation to see its call log, transcript, and outcome; if you
+                provided an email, a confirmation with the transcript is sent there too.
               </p>
             </div>
           )}
