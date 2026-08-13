@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CallAgent — AI Phone Reservations",
-  description: "AI agent that places live phone calls in Japan to make reservations",
+  title: "CallAgent — AI Restaurant Reservations",
+  description: "AI reservation agent for restaurants in Japan and Singapore",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

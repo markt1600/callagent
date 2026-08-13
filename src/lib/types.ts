@@ -17,14 +17,17 @@ export interface ReservationRequest {
   language: SupportedLanguage;
   callerName: string;
   specialRequests?: string;
-  /** Phrase pack status */
+  /** Lifecycle status */
   status:
     | "created"
+    | "scheduled"
     | "generating_phrases"
     | "ready"
     | "calling"
     | "completed"
     | "failed";
+  /** When to place the call (ISO). Absent = call immediately on creation. */
+  callAt?: string;
   phrasePack?: PhrasePack;
   /**
    * Fallback language the callee might answer in (e.g. Mandarin for

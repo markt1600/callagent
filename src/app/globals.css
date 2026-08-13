@@ -83,7 +83,7 @@ button.danger { background: var(--err); }
   color: var(--muted);
 }
 .badge.ready, .badge.completed, .badge.ok { color: var(--ok); border-color: var(--ok); }
-.badge.calling, .badge.generating_phrases, .badge.in_progress { color: var(--warn); border-color: var(--warn); }
+.badge.calling, .badge.generating_phrases, .badge.in_progress, .badge.scheduled { color: var(--warn); border-color: var(--warn); }
 .badge.failed { color: var(--err); border-color: var(--err); }
 
 .res-item {

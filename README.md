@@ -1,6 +1,8 @@
-# CallAgent — AI phone reservations (Japan & beyond)
+# CallAgent — AI reservation agent for restaurants in Japan and Singapore
 
-An AI agent that places **live telephone calls** (e.g. "call XXX to reach Restaurant Y and book a table for 2 on the 20th at 19:00, in Japanese"). Built with Next.js and deployed on **Vercel**, using **ElevenLabs** for speech, **Twilio** for telephony, and **Claude** for phrase generation, intent matching, and live translation.
+An AI agent that **calls restaurants and books your table**: enter the restaurant's number, party size, date/time, and language, and it places the call immediately — or at a time you schedule. Built with Next.js and deployed on **Vercel**, using **ElevenLabs** for speech, **Twilio** for telephony, and **Claude** for phrase generation, intent matching, and live translation.
+
+**Default flow:** creating a reservation dials the restaurant right away via Agent mode (no preparation step needed). Pass `callAt` (or pick "Schedule the call" in the UI) to have Vercel Cron place the call at a specific time — set a `CRON_SECRET` env var to protect the dispatch endpoint. (Sub-daily cron schedules require a Vercel Pro plan; on Hobby, use "Call now" or trigger `/api/cron/dispatch` yourself.) The cached-IVR mode and phrase pre-generation described below remain available under "Advanced" in the UI and via the API.
 
 **Japanese, English, and Mandarin work out of the box** — pick the call language per reservation. Japanese calls are scripted in natural keigo; English calls (e.g. restaurants in Singapore) are scripted in polite international English, and Twilio speech recognition automatically uses the accent-matched locale for the destination (+65 → `en-SG`, +44 → `en-GB`, +61 → `en-AU`, …). The phrase library keeps all languages side by side, keyed per language.
 

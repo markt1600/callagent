@@ -18,6 +18,8 @@ const EMPTY_FORM = {
   language: "ja",
   callerName: "",
   specialRequests: "",
+  callTiming: "now" as "now" | "scheduled",
+  callAt: "",
 };
 
 export default function Dashboard() {
@@ -93,14 +95,17 @@ export default function Dashboard() {
     setError(null);
     setBusy("create");
     try {
-      const data = await api("/api/reservations", form);
+      const { callTiming, callAt, ...rest } = form;
+      const body: Record<string, unknown> = { ...rest };
+      if (callTiming === "scheduled" && callAt) {
+        body.callAt = new Date(callAt).toISOString();
+      }
+      const data = await api("/api/reservations", body);
       const reservation = data.reservation as ReservationRequest;
       setSelectedId(reservation.id);
+      if (reservation.error) setError(reservation.error);
       await refresh();
-      // Kick off phrase-pack generation immediately.
-      setBusy("prepare");
-      await api(`/api/reservations/${reservation.id}/prepare`);
-      await refresh();
+      await refreshCalls();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -166,8 +171,8 @@ export default function Dashboard() {
     <main>
       <h1>CallAgent</h1>
       <p className="sub">
-        AI phone agent for reservations in Japan — pre-generated phrase audio, cached-first
-        playback, live translation relay fallback.
+        AI reservation agent for restaurants in Japan and Singapore — enter the details,
+        and it calls the restaurant and books your table.
       </p>
 
       <div className="grid">
@@ -240,12 +245,35 @@ export default function Dashboard() {
               onChange={(e) => setForm({ ...form, specialRequests: e.target.value })}
               placeholder="Counter seats if possible; one guest is vegetarian"
             />
+            <label>When to call</label>
+            <div className="row">
+              <select
+                value={form.callTiming}
+                onChange={(e) =>
+                  setForm({ ...form, callTiming: e.target.value as "now" | "scheduled" })
+                }
+                style={{ flex: 1 }}
+              >
+                <option value="now">Call now</option>
+                <option value="scheduled">Schedule the call</option>
+              </select>
+              {form.callTiming === "scheduled" && (
+                <input
+                  type="datetime-local"
+                  value={form.callAt}
+                  onChange={(e) => setForm({ ...form, callAt: e.target.value })}
+                  style={{ flex: 1.4 }}
+                />
+              )}
+            </div>
             <button onClick={createReservation} disabled={busy !== null}>
               {busy === "create"
-                ? "Creating…"
-                : busy === "prepare"
-                  ? "Generating phrases + audio…"
-                  : "Create & prepare phrases"}
+                ? form.callTiming === "now"
+                  ? "Placing call…"
+                  : "Scheduling…"
+                : form.callTiming === "now"
+                  ? "📞 Make reservation call"
+                  : "Schedule reservation call"}
             </button>
             {error && <p className="error">{error}</p>}
           </div>
@@ -312,30 +340,47 @@ export default function Dashboard() {
                     {selected.status.replace("_", " ")}
                   </span>
                 </h2>
+                {selected.status === "scheduled" && selected.callAt && (
+                  <p className="sub" style={{ margin: "0 0 0.5rem" }}>
+                    Call scheduled for {new Date(selected.callAt).toLocaleString()}
+                  </p>
+                )}
                 <div className="row">
                   <button
-                    className="secondary"
-                    onClick={() => prepare(selected.id)}
-                    disabled={busy !== null || selected.status === "generating_phrases"}
-                  >
-                    {selected.phrasePack ? "Regenerate phrases" : "Prepare phrases"}
-                  </button>
-                  <button
                     onClick={() => placeCall(selected.id, "agent")}
-                    disabled={busy !== null}
-                    title="ElevenLabs Conversational AI handles the realtime loop"
+                    disabled={busy !== null || selected.status === "calling"}
+                    title="Places the call now via the AI agent"
                   >
-                    {busy === "call-agent" ? "Dialing…" : "📞 Call (Agent mode)"}
-                  </button>
-                  <button
-                    onClick={() => placeCall(selected.id, "ivr")}
-                    disabled={busy !== null || !selected.phrasePack}
-                    title="Self-hosted loop with cached audio"
-                  >
-                    {busy === "call-ivr" ? "Dialing…" : "📞 Call (Cached IVR mode)"}
+                    {busy === "call-agent"
+                      ? "Dialing…"
+                      : selected.status === "scheduled"
+                        ? "📞 Call now instead"
+                        : "📞 Call again"}
                   </button>
                 </div>
                 {selected.error && <p className="error">{selected.error}</p>}
+                <details style={{ marginTop: "0.6rem" }}>
+                  <summary className="sub" style={{ cursor: "pointer", marginBottom: 0 }}>
+                    Advanced: cached IVR mode (pre-generated audio loop)
+                  </summary>
+                  <div className="row">
+                    <button
+                      className="secondary"
+                      onClick={() => prepare(selected.id)}
+                      disabled={busy !== null || selected.status === "generating_phrases"}
+                    >
+                      {selected.phrasePack ? "Regenerate phrases" : "Prepare phrases"}
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => placeCall(selected.id, "ivr")}
+                      disabled={busy !== null || !selected.phrasePack}
+                      title="Self-hosted loop with cached audio"
+                    >
+                      {busy === "call-ivr" ? "Dialing…" : "📞 Call (IVR mode)"}
+                    </button>
+                  </div>
+                </details>
                 {selected.phrasePack?.cacheStats && (
                   <p className="sub" style={{ margin: "0.6rem 0 0" }}>
                     Phrase pack: {selected.phrasePack.phrases.length} phrases —{" "}
@@ -441,9 +486,9 @@ export default function Dashboard() {
             <div className="panel">
               <h2>Select a reservation</h2>
               <p className="sub">
-                Create a reservation request on the left. The system will script the call with
-                Claude, pre-render every phrase to audio via ElevenLabs (reusing the persistent
-                phrase library), and then you can place the call.
+                Create a reservation on the left — the AI agent calls the restaurant
+                immediately (or at your scheduled time) and the transcript and outcome appear
+                here when the call finishes.
               </p>
             </div>
           )}

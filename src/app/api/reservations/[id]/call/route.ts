@@ -1,13 +1,11 @@
-// Place the actual phone call, in one of two modes:
-//   "agent" — ElevenLabs Conversational AI handles the realtime loop (recommended)
-//   "ivr"   — self-hosted cached-audio loop via Twilio TwiML webhooks
+// Manually (re)place the phone call for a reservation.
+//   "agent" (default) — ElevenLabs Conversational AI handles the realtime loop
+//   "ivr"             — self-hosted cached-audio loop (requires prepared phrases)
 
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
-import { getJSON, setJSON } from "@/lib/store";
-import { placeAgentCall } from "@/lib/elevenlabsAgent";
-import { placeIvrCall } from "@/lib/twilioClient";
-import type { CallSession, ReservationRequest } from "@/lib/types";
+import { getJSON } from "@/lib/store";
+import { dispatchCall } from "@/lib/dispatch";
+import type { ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -23,45 +21,7 @@ export async function POST(
   const body = await request.json().catch(() => ({}));
   const mode: "agent" | "ivr" = body.mode === "ivr" ? "ivr" : "agent";
 
-  if (mode === "ivr" && !reservation.phrasePack) {
-    return NextResponse.json(
-      { error: "IVR mode requires a prepared phrase pack — run prepare first" },
-      { status: 400 },
-    );
-  }
-
-  const call: CallSession = {
-    id: randomUUID().slice(0, 8),
-    reservationId: reservation.id,
-    mode,
-    status: "dialing",
-    startedAt: new Date().toISOString(),
-    turns: [],
-    relayActive: false,
-    unmatchedStreak: 0,
-    activeLanguage: reservation.phrasePack?.language ?? reservation.language,
-    languageProbed: false,
-  };
-
-  try {
-    if (mode === "agent") {
-      const result = await placeAgentCall(reservation);
-      call.elevenLabsConversationId = result.conversationId;
-      call.twilioCallSid = result.callSid;
-    } else {
-      call.twilioCallSid = await placeIvrCall(reservation.phoneNumber, call.id);
-    }
-    call.status = "in_progress";
-    reservation.status = "calling";
-  } catch (err) {
-    call.status = "failed";
-    reservation.status = "failed";
-    reservation.error = err instanceof Error ? err.message : String(err);
-  }
-
-  await setJSON(`call:${call.id}`, call);
-  await setJSON(`res:${reservation.id}`, reservation);
-
+  const { call } = await dispatchCall(reservation, mode);
   if (call.status === "failed") {
     return NextResponse.json({ error: reservation.error, call }, { status: 500 });
   }
