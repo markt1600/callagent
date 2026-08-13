@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { randomUUID } from "crypto";
 import { setJSON, listJSON } from "@/lib/store";
 import { dispatchCall } from "@/lib/dispatch";
+import { ensurePhrasePacks } from "@/lib/preparePhrases";
 import type { ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Headroom for the background phrase generation that runs after the response.
+export const maxDuration = 300;
 
 export async function GET() {
   const reservations = await listJSON<ReservationRequest>("res:");
@@ -63,6 +66,10 @@ export async function POST(request: NextRequest) {
     const result = await dispatchCall(reservation, "agent");
     reservation = result.reservation;
   }
+
+  // Pre-script the call in the background (after the response is sent):
+  // grows the persistent phrase library and readies the cached-IVR fallback.
+  after(() => ensurePhrasePacks(reservation.id));
 
   return NextResponse.json({ reservation }, { status: 201 });
 }
