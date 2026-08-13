@@ -38,6 +38,7 @@ export interface ReservationRequest {
     | "ready"
     | "calling"
     | "completed"
+    | "cancelled"
     | "failed";
   /** When to place the call (ISO). Absent = call immediately on creation. */
   callAt?: string;
@@ -137,6 +138,8 @@ export interface CallSession {
   id: string;
   reservationId: string;
   mode: "agent" | "ivr";
+  /** What this call is for: making the booking (default) or cancelling it */
+  purpose?: "book" | "cancel";
   twilioCallSid?: string;
   elevenLabsConversationId?: string;
   status: "dialing" | "in_progress" | "completed" | "failed" | "no_answer";

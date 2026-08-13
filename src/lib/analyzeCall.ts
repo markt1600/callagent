@@ -34,6 +34,7 @@ export interface AnalyzedOutcome {
 export async function analyzeOutcome(
   reservation: ReservationRequest,
   turns: CallTurn[],
+  purpose: "book" | "cancel" = "book",
 ): Promise<AnalyzedOutcome> {
   if (turns.length === 0) {
     return { success: false, summary: "No conversation was captured on this call." };
@@ -43,14 +44,17 @@ export async function analyzeOutcome(
     .map((t) => `${t.speaker === "agent" ? "Agent" : t.speaker === "operator" ? "Operator" : "Restaurant"}: ${t.text}`)
     .join("\n");
 
-  const client = anthropic();
-  const response = await client.beta.messages.parse({
-    model: config.anthropic.smartModel,
-    max_tokens: 2000,
-    messages: [
-      {
-        role: "user",
-        content: `Audit this restaurant-reservation phone call and decide whether the booking was actually made.
+  const brief =
+    purpose === "cancel"
+      ? `Audit this phone call and decide whether an existing reservation was actually CANCELLED.
+
+The agent was calling ${reservation.restaurantName} to cancel the booking under ${reservation.callerName} for ${reservation.partySize} on ${reservation.date} at ${reservation.time}.
+
+Transcript:
+${transcript}
+
+Be strict: mark confirmed=true ONLY if the restaurant clearly acknowledged and accepted the cancellation. Confusion, hang-ups, or an unresolved ending are confirmed=false.`
+      : `Audit this restaurant-reservation phone call and decide whether the booking was actually made.
 
 The agent was calling to request: a table for ${reservation.partySize} at ${reservation.restaurantName} on ${reservation.date} at ${reservation.time}${
           reservation.timeWindowStart && reservation.timeWindowEnd
@@ -61,9 +65,13 @@ The agent was calling to request: a table for ${reservation.partySize} at ${rese
 Transcript:
 ${transcript}
 
-Be strict: mark confirmed=true ONLY if the restaurant clearly accepted the reservation. Apologies, confusion, hang-ups, wrong-number exchanges, "we're full", or an unresolved ending are confirmed=false.`,
-      },
-    ],
+Be strict: mark confirmed=true ONLY if the restaurant clearly accepted the reservation. Apologies, confusion, hang-ups, wrong-number exchanges, "we're full", or an unresolved ending are confirmed=false.`;
+
+  const client = anthropic();
+  const response = await client.beta.messages.parse({
+    model: config.anthropic.smartModel,
+    max_tokens: 2000,
+    messages: [{ role: "user", content: brief }],
     output_format: betaZodOutputFormat(OutcomeSchema),
   });
   assertNotRefusal(response);

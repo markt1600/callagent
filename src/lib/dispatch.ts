@@ -20,11 +20,13 @@ export interface DispatchResult {
 export async function dispatchCall(
   reservation: ReservationRequest,
   mode: "agent" | "ivr" = "agent",
+  purpose: "book" | "cancel" = "book",
 ): Promise<DispatchResult> {
   const call: CallSession = {
     id: randomUUID().slice(0, 8),
     reservationId: reservation.id,
     mode,
+    purpose,
     status: "dialing",
     startedAt: new Date().toISOString(),
     turns: [],
@@ -38,18 +40,23 @@ export async function dispatchCall(
 
   try {
     if (mode === "ivr") {
+      if (purpose === "cancel") {
+        throw new Error("Cancellation calls are Agent mode only");
+      }
       if (!reservation.phrasePack) {
         throw new Error("IVR mode requires a prepared phrase pack — run prepare first");
       }
       call.twilioCallSid = await placeIvrCall(reservation.phoneNumber, call.id);
     } else {
-      const result = await placeAgentCall(reservation);
+      const result = await placeAgentCall(reservation, purpose);
       call.elevenLabsConversationId = result.conversationId;
       call.twilioCallSid = result.callSid;
     }
     call.status = "in_progress";
     reservation.status = "calling";
     reservation.error = undefined;
+    // A new call means a new outcome email once it completes.
+    if (purpose === "cancel") reservation.confirmationSentAt = undefined;
   } catch (err) {
     call.status = "failed";
     reservation.status = "failed";

@@ -109,12 +109,12 @@ export async function POST(request: NextRequest) {
   if (reservationId) {
     const reservation = await getJSON<ReservationRequest>(`res:${reservationId}`);
     if (reservation) {
-      reservation.status = "completed";
+      const purpose = call?.purpose ?? "book";
       // Independent verification: Claude audits the transcript. The
       // provider's call_successful flag is only a last-resort fallback —
       // it has reported "success" on plainly failed calls.
       try {
-        reservation.outcome = await analyzeOutcome(reservation, call?.turns ?? []);
+        reservation.outcome = await analyzeOutcome(reservation, call?.turns ?? [], purpose);
       } catch (err) {
         console.error("Outcome analysis failed, falling back to provider flag:", err);
         reservation.outcome = {
@@ -124,6 +124,8 @@ export async function POST(request: NextRequest) {
             "Call completed — see transcript for details.",
         };
       }
+      reservation.status =
+        purpose === "cancel" && reservation.outcome.success ? "cancelled" : "completed";
       await setJSON(`res:${reservationId}`, reservation);
     }
     // Email the requester the outcome + transcript, auto-translated to

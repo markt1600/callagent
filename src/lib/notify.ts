@@ -26,10 +26,13 @@ function speakerLabel(speaker: string): string {
 }
 
 function buildEmail(reservation: ReservationRequest, call: CallSession | null) {
+  const cancelled = reservation.status === "cancelled";
   const ok = reservation.outcome?.success;
-  const subject = ok
-    ? `✅ Reservation confirmed — ${reservation.restaurantName}, ${reservation.date} ${reservation.time}`
-    : `⚠️ Reservation not confirmed — ${reservation.restaurantName}`;
+  const subject = cancelled
+    ? `🗑️ Reservation cancelled — ${reservation.restaurantName}, ${reservation.date} ${reservation.time}`
+    : ok
+      ? `✅ Reservation confirmed — ${reservation.restaurantName}, ${reservation.date} ${reservation.time}`
+      : `⚠️ Reservation not confirmed — ${reservation.restaurantName}`;
 
   const transcriptRows = (call?.turns ?? [])
     .map((t) => {
@@ -46,7 +49,7 @@ function buildEmail(reservation: ReservationRequest, call: CallSession | null) {
 
   const html = `
   <div style="font-family:ui-sans-serif,system-ui,sans-serif;max-width:640px;margin:0 auto;color:#223">
-    <h2 style="margin:16px 0 4px">${ok ? "Reservation confirmed 🎉" : "Reservation not confirmed"}</h2>
+    <h2 style="margin:16px 0 4px">${cancelled ? "Reservation cancelled" : ok ? "Reservation confirmed 🎉" : "Reservation not confirmed"}</h2>
     <p style="margin:4px 0 16px;color:#556">${escapeHtml(reservation.outcome?.summary ?? "The call has completed — please review the transcript below.")}</p>
     <table style="border-collapse:collapse;background:#f6f7f9;border-radius:8px;width:100%;margin-bottom:20px">
       <tr><td style="padding:8px 12px;color:#889">Restaurant</td><td style="padding:8px 12px"><b>${escapeHtml(reservation.restaurantName)}</b></td></tr>

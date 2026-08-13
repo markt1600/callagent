@@ -161,6 +161,26 @@ export default function Dashboard() {
     }
   }
 
+  async function cancelCall(id: string) {
+    if (
+      !window.confirm(
+        "Call the restaurant to cancel this reservation? The agent will phone them now.",
+      )
+    )
+      return;
+    setError(null);
+    setBusy("cancel-call");
+    try {
+      await api(`/api/reservations/${id}/cancel-call`);
+      await refresh();
+      await refreshCalls();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function operatorAction(action: "take_over" | "resume_auto") {
     if (!activeCall) return;
     try {
@@ -353,7 +373,15 @@ export default function Dashboard() {
               <div
                 key={r.id}
                 className={`res-item ${selectedId === r.id ? "selected" : ""} ${
-                  r.outcome ? (r.outcome.success ? "won" : "lost") : r.status === "failed" ? "lost" : ""
+                  r.status === "cancelled"
+                    ? ""
+                    : r.outcome
+                      ? r.outcome.success
+                        ? "won"
+                        : "lost"
+                      : r.status === "failed"
+                        ? "lost"
+                        : ""
                 }`}
                 onClick={() => {
                   setSelectedId(r.id);
@@ -409,6 +437,16 @@ export default function Dashboard() {
                         ? "📞 Call now instead"
                         : "📞 Call again"}
                   </button>
+                  {selected.outcome?.success && selected.status === "completed" && (
+                    <button
+                      className="danger"
+                      onClick={() => cancelCall(selected.id)}
+                      disabled={busy !== null}
+                      title="Calls the restaurant to cancel this reservation"
+                    >
+                      {busy === "cancel-call" ? "Dialing…" : "📞 Call to cancel"}
+                    </button>
+                  )}
                 </div>
                 {selected.error && <p className="error">{selected.error}</p>}
                 <details style={{ marginTop: "0.6rem" }}>

@@ -26,20 +26,33 @@ function headers() {
 
 /** System prompt for the ElevenLabs agent, parameterized by dynamic variables. */
 export function agentPromptTemplate(): string {
-  return `You are a polite, efficient assistant calling {{restaurant_name}} on behalf of {{caller_name}} to make a dinner reservation. Conduct the entire call in {{call_language}}.
+  return `You are a polite, efficient assistant calling {{restaurant_name}} on behalf of {{caller_name}}. Conduct the entire call in {{call_language}}.
 
-Reservation to request: {{party_size}} people on {{reservation_date}} at {{reservation_time}}.
-{{special_requests}}
+YOUR TASK ON THIS CALL: {{task_instructions}}
 
 Guidelines:
-- You placed this outbound call to the restaurant's number, so assume you have reached the right place. Restaurant staff answer in many ways — the restaurant's name, a personal name, a short hello, or just background noise — and speech transcription frequently MISHEARS names, so a name that merely sounds similar to {{restaurant_name}} is almost certainly the same place. NEVER conclude it is a wrong number and never hang up because of how the call was answered or because a name sounds slightly different; only treat it as a wrong number if the person explicitly tells you that you have called the wrong place, and even then confirm once with "Is this {{restaurant_name}}?" before politely ending. If the greeting is unclear, ask once "Is this {{restaurant_name}}?" and then proceed with the reservation request.
+- You placed this outbound call to the restaurant's number, so assume you have reached the right place. Restaurant staff answer in many ways — the restaurant's name, a personal name, a short hello, or just background noise — and speech transcription frequently MISHEARS names, so a name that merely sounds similar to {{restaurant_name}} is almost certainly the same place. NEVER conclude it is a wrong number and never hang up because of how the call was answered or because a name sounds slightly different; only treat it as a wrong number if the person explicitly tells you that you have called the wrong place, and even then confirm once with "Is this {{restaurant_name}}?" before politely ending. If the greeting is unclear, ask once "Is this {{restaurant_name}}?" and then proceed with your task.
 - Speak naturally and politely (in Japanese, use appropriate keigo for a customer).
 - If the person answering speaks a different language than {{call_language}} (for example they answer in Mandarin), switch to their language immediately and conduct the rest of the call in it.
-- State the full request early: date, time, party size.
 - The booking name is {{caller_name}}. The guest's contact number is: {{callback_number}}. If asked for a phone number, give that contact number and no other — never give the number you are calling from. If the contact number is "not available", apologize and offer the booking name instead.
-- If the requested slot is unavailable, ask what times are available that day. Accept the closest available slot between {{acceptable_earliest}} and {{acceptable_latest}} without needing to check with anyone; if nothing in that range is available, politely decline and end the call.
-- Confirm the final reservation details back before ending the call.
+- Confirm the outcome of your task back to the staff before ending the call.
 - Keep responses short — this is a phone call.`;
+}
+
+/** Per-call task brief, with all reservation specifics baked in. */
+function taskInstructions(req: ReservationRequest, purpose: "book" | "cancel"): string {
+  if (purpose === "cancel") {
+    return `Cancel an existing reservation. ${req.callerName} has a booking at ${req.restaurantName} for ${req.partySize} people on ${req.date} at ${req.time} and needs to cancel it. Apologize briefly for the inconvenience, ask them to cancel the booking under the name ${req.callerName}, make sure the staff clearly confirms the reservation is cancelled, thank them sincerely, and end the call. Do NOT make any new reservation on this call.`;
+  }
+  const earliest = req.timeWindowStart ?? req.time;
+  const latest = req.timeWindowEnd ?? req.time;
+  const flexibility =
+    earliest !== req.time || latest !== req.time
+      ? `If that slot is unavailable, ask what times are available that day and accept the closest available slot between ${earliest} and ${latest} without needing to check with anyone; if nothing in that range is available, politely decline and end the call.`
+      : `Only ${req.time} is acceptable — if that exact slot is unavailable, thank them politely and end the call without booking an alternative.`;
+  return `Make a dinner reservation. State the full request early: ${req.partySize} people on ${req.date} at ${req.time}, booking name ${req.callerName}. ${flexibility}${
+    req.specialRequests ? ` Also mention: ${req.specialRequests}.` : ""
+  }`;
 }
 
 export interface OutboundCallResult {
@@ -55,7 +68,10 @@ const LANGUAGE_NAMES: Record<string, string> = {
 };
 
 /** Place an outbound call through the ElevenLabs agent via Twilio. */
-export async function placeAgentCall(req: ReservationRequest): Promise<OutboundCallResult> {
+export async function placeAgentCall(
+  req: ReservationRequest,
+  purpose: "book" | "cancel" = "book",
+): Promise<OutboundCallResult> {
   const agentId = requireEnv(config.elevenlabs.agentId, "ELEVENLABS_AGENT_ID");
   const phoneNumberId = requireEnv(
     config.elevenlabs.agentPhoneNumberId,
@@ -67,6 +83,7 @@ export async function placeAgentCall(req: ReservationRequest): Promise<OutboundC
       restaurant_name: req.restaurantName,
       caller_name: req.callerName,
       call_language: LANGUAGE_NAMES[req.language] ?? "English",
+      task_instructions: taskInstructions(req, purpose),
       party_size: String(req.partySize),
       reservation_date: req.date,
       reservation_time: req.time,
