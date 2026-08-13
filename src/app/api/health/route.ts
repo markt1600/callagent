@@ -63,6 +63,10 @@ export async function GET() {
     ok: problems.length === 0,
     problems,
     kv: usingFileFallback ? "file fallback (dev)" : kvStatus,
+    detected: {
+      kvSource: config.kv.source || "none — no KV/Redis env vars found in this deployment",
+      blobSource: config.blob.source || "none — no Blob token env var found in this deployment",
+    },
     env,
   });
 }
