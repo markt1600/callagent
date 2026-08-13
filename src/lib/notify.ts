@@ -9,6 +9,7 @@ import type { CallSession, ReservationRequest } from "./types";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const FROM_EMAIL = process.env.CONFIRMATION_FROM_EMAIL || "";
+const FROM_NAME = process.env.CONFIRMATION_FROM_NAME || "CallAgent";
 
 function escapeHtml(s: string): string {
   return s
@@ -88,7 +89,7 @@ export async function sendConfirmation(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: `CallAgent <${FROM_EMAIL}>`,
+      from: `${FROM_NAME} <${FROM_EMAIL}>`,
       to: [reservation.notifyEmail],
       subject,
       html,

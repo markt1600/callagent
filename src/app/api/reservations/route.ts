@@ -60,6 +60,12 @@ async function handleCreate(request: NextRequest) {
       { status: 400 },
     );
   }
+  if (String(body.callerName).trim().split(/\s+/).length < 2) {
+    return NextResponse.json(
+      { error: "Booking name must include at least first and last name, e.g. Taro Tanaka" },
+      { status: 400 },
+    );
+  }
 
   let callAt: string | undefined;
   if (body.callAt) {

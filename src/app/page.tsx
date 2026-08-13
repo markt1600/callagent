@@ -15,7 +15,7 @@ const EMPTY_FORM = {
   partySize: 2,
   date: "",
   time: "19:00",
-  language: "ja",
+  language: "en",
   callerName: "",
   contactPhone: "",
   notifyEmail: "",
@@ -233,8 +233,8 @@ export default function Dashboard() {
               value={form.language}
               onChange={(e) => setForm({ ...form, language: e.target.value })}
             >
-              <option value="ja">Japanese</option>
               <option value="en">English</option>
+              <option value="ja">Japanese</option>
               <option value="zh">Mandarin</option>
             </select>
             {form.language === "en" && form.phoneNumber.startsWith("+65") && (
@@ -243,11 +243,11 @@ export default function Dashboard() {
                 case the restaurant answers in Mandarin.
               </p>
             )}
-            <label>Booking name</label>
+            <label>Booking name (first and last name)</label>
             <input
               value={form.callerName}
               onChange={(e) => setForm({ ...form, callerName: e.target.value })}
-              placeholder="Tanaka"
+              placeholder="Taro Tanaka"
             />
             <label>Guest contact number (the number given to the restaurant)</label>
             <input
