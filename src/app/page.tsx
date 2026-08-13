@@ -17,6 +17,21 @@ const EMPTY_FORM = {
   contactPhone: "",
   notifyEmail: "",
   specialRequests: "",
+  // Additional options (expandable)
+  seating: "",
+  minimumSpend: "",
+  smoking: "",
+  timeLimit: "",
+  privateRoom: false,
+  quietTable: false,
+  kidsCount: 0,
+  kidsSeating: false,
+  occasion: "",
+  occasionName: "",
+  birthdayCake: false,
+  allergies: "",
+  accessibility: false,
+  askCorkage: false,
   callTiming: "now" as "now" | "scheduled",
   callAt: "",
 };
@@ -99,11 +114,45 @@ export default function Dashboard() {
     setError(null);
     setBusy("create");
     try {
-      const { callTiming, callAt, ...rest } = form;
+      const {
+        callTiming,
+        callAt,
+        seating,
+        minimumSpend,
+        smoking,
+        timeLimit,
+        privateRoom,
+        quietTable,
+        kidsCount,
+        kidsSeating,
+        occasion,
+        occasionName,
+        birthdayCake,
+        allergies,
+        accessibility,
+        askCorkage,
+        ...rest
+      } = form;
       const body: Record<string, unknown> = { ...rest };
       if (callTiming === "scheduled" && callAt) {
         body.callAt = new Date(callAt).toISOString();
       }
+      body.preferences = {
+        seating: seating || undefined,
+        minimumSpendOk: minimumSpend === "" ? undefined : minimumSpend === "yes",
+        smoking: smoking || undefined,
+        timeLimitOk: timeLimit === "" ? undefined : timeLimit === "yes",
+        privateRoom,
+        quietTable,
+        kidsCount,
+        kidsSeating,
+        occasion: occasion || undefined,
+        occasionName: occasionName || undefined,
+        birthdayCake,
+        allergies: allergies || undefined,
+        accessibility,
+        askCorkage,
+      };
       const data = await api("/api/reservations", body);
       const reservation = data.reservation as ReservationRequest;
       setSelectedId(reservation.id);
@@ -341,8 +390,133 @@ export default function Dashboard() {
             <textarea
               value={form.specialRequests}
               onChange={(e) => setForm({ ...form, specialRequests: e.target.value })}
-              placeholder="Counter seats if possible; one guest is vegetarian"
+              placeholder="Anything else the agent should mention"
             />
+
+            <details style={{ marginTop: "0.9rem" }}>
+              <summary className="sub" style={{ cursor: "pointer", marginBottom: 0 }}>
+                Additional options (occasion, seating, kids…)
+              </summary>
+
+              <label style={{ marginTop: "0.9rem" }}>
+                Raised by the agent during the call
+              </label>
+              <div className="row" style={{ gap: "1rem" }}>
+                <label style={{ margin: 0, textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
+                  <input type="checkbox" style={{ width: "auto" }} checked={form.privateRoom}
+                    onChange={(e) => setForm({ ...form, privateRoom: e.target.checked })} />
+                  Private room required
+                </label>
+                <label style={{ margin: 0, textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
+                  <input type="checkbox" style={{ width: "auto" }} checked={form.quietTable}
+                    onChange={(e) => setForm({ ...form, quietTable: e.target.checked })} />
+                  Quieter table preferred
+                </label>
+              </div>
+              <div className="row" style={{ gap: "1rem", marginTop: "0.4rem" }}>
+                <label style={{ margin: 0, textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
+                  <input type="checkbox" style={{ width: "auto" }} checked={form.accessibility}
+                    onChange={(e) => setForm({ ...form, accessibility: e.target.checked })} />
+                  Wheelchair/stroller access
+                </label>
+                <label style={{ margin: 0, textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
+                  <input type="checkbox" style={{ width: "auto" }} checked={form.askCorkage}
+                    onChange={(e) => setForm({ ...form, askCorkage: e.target.checked })} />
+                  Ask corkage policy
+                </label>
+              </div>
+
+              <div className="row">
+                <div style={{ flex: 1, minWidth: 120 }}>
+                  <label>Children in party</label>
+                  <input type="number" min={0} value={form.kidsCount}
+                    onChange={(e) => setForm({ ...form, kidsCount: Number(e.target.value) })} />
+                </div>
+                {form.kidsCount > 0 && (
+                  <label style={{ margin: "1.4rem 0 0", textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
+                    <input type="checkbox" style={{ width: "auto" }} checked={form.kidsSeating}
+                      onChange={(e) => setForm({ ...form, kidsSeating: e.target.checked })} />
+                    Kids seating needed
+                  </label>
+                )}
+              </div>
+
+              <label>Special occasion</label>
+              <select value={form.occasion}
+                onChange={(e) => setForm({ ...form, occasion: e.target.value })}>
+                <option value="">None</option>
+                <option value="birthday">Birthday</option>
+                <option value="anniversary">Anniversary</option>
+                <option value="business">Business dinner</option>
+                <option value="date">Date night</option>
+              </select>
+              {form.occasion && (
+                <>
+                  <label>Who is celebrating? (optional)</label>
+                  <input value={form.occasionName}
+                    onChange={(e) => setForm({ ...form, occasionName: e.target.value })}
+                    placeholder="e.g. Emi" />
+                </>
+              )}
+              {form.occasion === "birthday" && (
+                <label style={{ margin: "0.6rem 0 0", textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
+                  <input type="checkbox" style={{ width: "auto" }} checked={form.birthdayCake}
+                    onChange={(e) => setForm({ ...form, birthdayCake: e.target.checked })} />
+                  Ask if they can prepare a birthday cake (extra charge OK; fine if unavailable)
+                </label>
+              )}
+
+              <label>Allergies / dietary restrictions (always stated)</label>
+              <input value={form.allergies}
+                onChange={(e) => setForm({ ...form, allergies: e.target.value })}
+                placeholder="e.g. shellfish allergy; one vegetarian" />
+
+              <label style={{ marginTop: "1.1rem" }}>
+                Only if it comes up in the conversation
+              </label>
+              <div className="row">
+                <div style={{ flex: 1, minWidth: 130 }}>
+                  <label>Seating preference</label>
+                  <select value={form.seating}
+                    onChange={(e) => setForm({ ...form, seating: e.target.value })}>
+                    <option value="">No preference</option>
+                    <option value="indoor">Indoor</option>
+                    <option value="outdoor">Outdoor</option>
+                    <option value="counter">Counter</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1, minWidth: 130 }}>
+                  <label>Smoking section</label>
+                  <select value={form.smoking}
+                    onChange={(e) => setForm({ ...form, smoking: e.target.value })}>
+                    <option value="">No preference</option>
+                    <option value="non_smoking">Non-smoking</option>
+                    <option value="smoking">Smoking</option>
+                  </select>
+                </div>
+              </div>
+              <div className="row">
+                <div style={{ flex: 1, minWidth: 130 }}>
+                  <label>Minimum spend</label>
+                  <select value={form.minimumSpend}
+                    onChange={(e) => setForm({ ...form, minimumSpend: e.target.value })}>
+                    <option value="">Not specified</option>
+                    <option value="yes">OK if required</option>
+                    <option value="no">Not OK — decline</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1, minWidth: 130 }}>
+                  <label>Seating time limit</label>
+                  <select value={form.timeLimit}
+                    onChange={(e) => setForm({ ...form, timeLimit: e.target.value })}>
+                    <option value="">Not specified</option>
+                    <option value="yes">OK if required</option>
+                    <option value="no">Not OK — decline</option>
+                  </select>
+                </div>
+              </div>
+            </details>
+
             <label>When to call</label>
             <div className="row">
               <select

@@ -13,7 +13,7 @@
 // The agent prompt should reference the dynamic variables passed below.
 
 import { config, requireEnv } from "./config";
-import type { ReservationRequest } from "./types";
+import type { ReservationPreferences, ReservationRequest } from "./types";
 
 const API = "https://api.elevenlabs.io";
 
@@ -69,7 +69,96 @@ function taskInstructions(req: ReservationRequest, purpose: "book" | "cancel"): 
       : `Only ${req.time} is acceptable — if that exact slot is unavailable, thank them politely and end the call without booking an alternative.`;
   return `Make a dinner reservation. State the full request early: ${req.partySize} people on ${req.date} at ${req.time}, booking name ${req.callerName}. ${flexibility}${
     req.specialRequests ? ` Also mention: ${req.specialRequests}.` : ""
-  }`;
+  }${preferenceBrief(req.preferences)}`;
+}
+
+/** Turn stored preferences into proactive + only-if-asked instructions. */
+export function preferenceBrief(p?: ReservationPreferences): string {
+  if (!p) return "";
+  const proactive: string[] = [];
+  const reactive: string[] = [];
+
+  // Proactive — the agent raises these itself.
+  if (p.privateRoom) {
+    proactive.push(
+      "a PRIVATE ROOM is required — request one explicitly; if no private room is available, do not book and politely end the call",
+    );
+  } else if (p.quietTable) {
+    proactive.push(
+      "ask for a quieter table with more privacy if possible (a preference, not a requirement — book either way)",
+    );
+  }
+  if (p.kidsCount && p.kidsCount > 0) {
+    proactive.push(
+      `the party includes ${p.kidsCount} ${p.kidsCount === 1 ? "child" : "children"} — mention this when booking${
+        p.kidsSeating ? ", and request children's seats / high chairs" : ""
+      }`,
+    );
+  }
+  if (p.occasion) {
+    const occasionNames = {
+      birthday: "a birthday",
+      anniversary: "an anniversary",
+      business: "a business dinner",
+      date: "a special date night",
+    } as const;
+    const whose = p.occasionName?.trim() ? ` for ${p.occasionName.trim()}` : "";
+    proactive.push(
+      `mention that the booking is a special occasion — ${occasionNames[p.occasion]}${whose}`,
+    );
+    if (p.occasion === "birthday" && p.birthdayCake) {
+      proactive.push(
+        `ask whether the restaurant can prepare a birthday cake${
+          p.occasionName?.trim() ? ` for ${p.occasionName.trim()}` : ""
+        } — make clear the guest is happy to pay an extra charge for it, and that it is completely fine if a cake is not available (proceed with the booking either way)`,
+      );
+    }
+  }
+  if (p.allergies?.trim()) {
+    proactive.push(
+      `IMPORTANT — inform the restaurant about allergies/dietary restrictions: ${p.allergies.trim()}. Always state this before ending the call, and ask them to note it on the booking`,
+    );
+  }
+  if (p.accessibility) {
+    proactive.push("mention that wheelchair/stroller access is needed and confirm they can accommodate it");
+  }
+  if (p.askCorkage) {
+    proactive.push(
+      "ask about their corkage policy — whether guests may bring their own wine and what the corkage fee is per bottle. This is an inquiry only: note their answer carefully so it can be reported back, and complete the booking regardless of the policy",
+    );
+  }
+
+  // Reactive — answered only if the restaurant brings the topic up.
+  if (p.seating) {
+    const seatingNames = { indoor: "indoor seating", outdoor: "outdoor seating", counter: "counter seating" };
+    reactive.push(`seating: the guest prefers ${seatingNames[p.seating]}`);
+  }
+  if (p.minimumSpendOk !== undefined) {
+    reactive.push(
+      p.minimumSpendOk
+        ? "minimum spend: if they mention one, the guest accepts it"
+        : "minimum spend: if they mention one, the guest does NOT accept it — politely decline the booking",
+    );
+  }
+  if (p.smoking) {
+    reactive.push(
+      `smoking section: if asked, the guest wants ${p.smoking === "non_smoking" ? "non-smoking" : "smoking"}`,
+    );
+  }
+  if (p.timeLimitOk !== undefined) {
+    reactive.push(
+      p.timeLimitOk
+        ? "seating time limit: if they mention one, the guest accepts it"
+        : "seating time limit: if they mention one, the guest does NOT accept it — politely decline the booking",
+    );
+  }
+
+  let out = "";
+  if (proactive.length) out += ` During the call, also: ${proactive.join("; ")}.`;
+  if (reactive.length) {
+    out += ` The following are ONLY-IF-ASKED preferences — do not bring them up yourself, but use them if the restaurant raises the topic: ${reactive.join("; ")}.`;
+  }
+  return out;
 }
 
 export interface OutboundCallResult {

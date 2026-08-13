@@ -19,6 +19,25 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function preferencesRow(reservation: ReservationRequest): string {
+  const p = reservation.preferences;
+  if (!p) return "";
+  const items: string[] = [];
+  if (p.privateRoom) items.push("private room required");
+  else if (p.quietTable) items.push("quieter table preferred");
+  if (p.kidsCount) items.push(`${p.kidsCount} child${p.kidsCount > 1 ? "ren" : ""}${p.kidsSeating ? " (kids seating)" : ""}`);
+  if (p.occasion) items.push(`${p.occasion}${p.occasionName ? ` — ${p.occasionName}` : ""}${p.birthdayCake ? ", cake requested" : ""}`);
+  if (p.allergies) items.push(`allergies: ${p.allergies}`);
+  if (p.accessibility) items.push("wheelchair/stroller access");
+  if (p.seating) items.push(`${p.seating} seating (if asked)`);
+  if (p.smoking) items.push(`${p.smoking === "non_smoking" ? "non-smoking" : "smoking"} (if asked)`);
+  if (p.minimumSpendOk !== undefined) items.push(`min. spend ${p.minimumSpendOk ? "OK" : "not OK"}`);
+  if (p.timeLimitOk !== undefined) items.push(`time limit ${p.timeLimitOk ? "OK" : "not OK"}`);
+  if (p.askCorkage) items.push("corkage inquiry");
+  if (!items.length) return "";
+  return `<tr><td style="padding:8px 12px;color:#889">Preferences</td><td style="padding:8px 12px">${escapeHtml(items.join(" · "))}</td></tr>`;
+}
+
 function speakerLabel(speaker: string): string {
   if (speaker === "agent") return "Agent";
   if (speaker === "operator") return "Operator";
@@ -64,6 +83,8 @@ function buildEmail(reservation: ReservationRequest, call: CallSession | null) {
       <tr><td style="padding:8px 12px;color:#889">Booking name</td><td style="padding:8px 12px"><b>${escapeHtml(reservation.callerName)}</b></td></tr>
       ${reservation.contactPhone ? `<tr><td style="padding:8px 12px;color:#889">Contact number</td><td style="padding:8px 12px"><b>${escapeHtml(reservation.contactPhone)}</b></td></tr>` : ""}
       ${reservation.specialRequests ? `<tr><td style="padding:8px 12px;color:#889">Special requests</td><td style="padding:8px 12px">${escapeHtml(reservation.specialRequests)}</td></tr>` : ""}
+      ${preferencesRow(reservation)}
+      ${reservation.outcome?.corkagePolicy ? `<tr><td style="padding:8px 12px;color:#889">Corkage policy</td><td style="padding:8px 12px"><b>${escapeHtml(reservation.outcome.corkagePolicy)}</b></td></tr>` : ""}
     </table>
     ${
       transcriptRows

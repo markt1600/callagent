@@ -19,6 +19,12 @@ const OutcomeSchema = z.object({
     .string()
     .nullable()
     .describe("The agreed seating time (HH:MM, 24h) if a booking was made, else null"),
+  corkagePolicy: z
+    .string()
+    .nullable()
+    .describe(
+      "If corkage was discussed: the restaurant's corkage policy in one plain-English sentence (allowed or not, fee per bottle). Null if corkage never came up.",
+    ),
   summary: z
     .string()
     .describe("One or two plain-English sentences describing what actually happened on the call"),
@@ -29,6 +35,7 @@ export interface AnalyzedOutcome {
   summary: string;
   confirmedDate?: string;
   confirmedTime?: string;
+  corkagePolicy?: string;
 }
 
 export async function analyzeOutcome(
@@ -65,7 +72,15 @@ The agent was calling to request: a table for ${reservation.partySize} at ${rese
 Transcript:
 ${transcript}
 
-Be strict: mark confirmed=true ONLY if the restaurant clearly accepted the reservation. Apologies, confusion, hang-ups, wrong-number exchanges, "we're full", or an unresolved ending are confirmed=false.`;
+Be strict: mark confirmed=true ONLY if the restaurant clearly accepted the reservation. Apologies, confusion, hang-ups, wrong-number exchanges, "we're full", or an unresolved ending are confirmed=false.${
+          reservation.preferences?.privateRoom
+            ? " A PRIVATE ROOM was required for this booking — mark confirmed=true only if a private room was actually secured."
+            : ""
+        }${
+          reservation.preferences?.askCorkage
+            ? " The agent was instructed to ask about the corkage policy — extract whatever the restaurant said about it into corkagePolicy."
+            : ""
+        }`;
 
   const client = anthropic();
   const response = await client.beta.messages.parse({
@@ -83,5 +98,6 @@ Be strict: mark confirmed=true ONLY if the restaurant clearly accepted the reser
     summary: parsed.summary,
     confirmedDate: parsed.confirmed ? reservation.date : undefined,
     confirmedTime: parsed.confirmed ? (parsed.confirmedTime ?? reservation.time) : undefined,
+    corkagePolicy: parsed.corkagePolicy ?? undefined,
   };
 }

@@ -2,6 +2,44 @@
 
 export type SupportedLanguage = "ja" | "en" | "zh";
 
+/**
+ * Additional reservation options.
+ * REACTIVE preferences are only voiced if the restaurant raises the topic.
+ * PROACTIVE ones are raised by the agent itself during the call.
+ */
+export interface ReservationPreferences {
+  // ── Reactive (answered only if asked) ────────────────────────────────────
+  /** Preferred seating, mentioned only if the restaurant asks */
+  seating?: "indoor" | "outdoor" | "counter";
+  /** Whether the guest accepts a minimum spend if one is mentioned */
+  minimumSpendOk?: boolean;
+  /** Smoking-section preference if asked (common in Japan) */
+  smoking?: "non_smoking" | "smoking";
+  /** Whether the guest accepts a seating time limit if one is mentioned */
+  timeLimitOk?: boolean;
+  // ── Proactive (raised by the agent) ──────────────────────────────────────
+  /** A private room is REQUIRED for the booking */
+  privateRoom?: boolean;
+  /** A quieter table / more privacy is preferred (softer than privateRoom) */
+  quietTable?: boolean;
+  /** Number of children in the party (0/undefined = none) */
+  kidsCount?: number;
+  /** Children's seats / high chairs needed */
+  kidsSeating?: boolean;
+  /** Occasion to mention when booking */
+  occasion?: "birthday" | "anniversary" | "business" | "date";
+  /** Name of the person celebrating (e.g. the birthday person) */
+  occasionName?: string;
+  /** Birthday only: ask if the restaurant can prepare a cake */
+  birthdayCake?: boolean;
+  /** Allergies / dietary restrictions — always stated proactively (safety) */
+  allergies?: string;
+  /** Wheelchair or stroller access needed */
+  accessibility?: boolean;
+  /** Ask about the corkage policy and report it back in the confirmation */
+  askCorkage?: boolean;
+}
+
 export interface ReservationRequest {
   id: string;
   createdAt: string;
@@ -30,6 +68,7 @@ export interface ReservationRequest {
   /** Set when the confirmation email has been sent (prevents duplicates). */
   confirmationSentAt?: string;
   specialRequests?: string;
+  preferences?: ReservationPreferences;
   /** Lifecycle status */
   status:
     | "created"
@@ -58,6 +97,8 @@ export interface ReservationRequest {
     summary: string;
     confirmedDate?: string;
     confirmedTime?: string;
+    /** What the restaurant said about corkage, when the agent asked */
+    corkagePolicy?: string;
   };
   error?: string;
 }

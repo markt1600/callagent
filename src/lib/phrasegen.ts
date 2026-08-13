@@ -11,6 +11,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { anthropic, assertNotRefusal } from "./claude";
 import { config } from "./config";
 import { getOrSynthesize } from "./phraseLibrary";
+import { preferenceBrief } from "./elevenlabsAgent";
 import type { ExpectedUtterance, Phrase, PhrasePack, ReservationRequest } from "./types";
 
 const PhraseSchema = z.object({
@@ -100,6 +101,7 @@ Reservation details:
 - Booking name: ${req.callerName}
 - Guest contact number: ${req.contactPhone ?? "not provided — if asked, apologize and offer the booking name instead"} (this is the ONLY phone number that may be given out; read it digit by digit in the phrase)
 ${req.specialRequests ? `- Special requests: ${req.specialRequests}` : ""}
+${req.preferences ? `- Preference handling (script phrases for these):${preferenceBrief(req.preferences)}` : ""}
 
 Produce a complete phrase pack:
 
