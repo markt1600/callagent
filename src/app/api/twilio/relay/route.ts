@@ -10,7 +10,7 @@ import {
   parseTwilioForm,
   validateTwilioSignature,
 } from "@/lib/twilioClient";
-import { loadCall, saveCall, loadReservation } from "@/lib/callEngine";
+import { loadCall, saveCall, loadReservation, activeLanguage } from "@/lib/callEngine";
 import { speechLocaleFor } from "@/lib/locale";
 
 export const runtime = "nodejs";
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     return twimlResponse(buildTwiml({ hangup: true, actionPath: "", language: "ja-JP" }));
   }
 
-  const language = speechLocaleFor(reservation.phrasePack.language, reservation.phoneNumber);
+  const language = speechLocaleFor(activeLanguage(call, reservation), reservation.phoneNumber);
   const relayPath = `/api/twilio/relay?callId=${encodeURIComponent(callId)}`;
   const gatherPath = `/api/twilio/gather?callId=${encodeURIComponent(callId)}`;
 

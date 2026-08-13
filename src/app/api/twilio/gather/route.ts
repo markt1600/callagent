@@ -9,7 +9,12 @@ import {
   parseTwilioForm,
   validateTwilioSignature,
 } from "@/lib/twilioClient";
-import { loadCall, loadReservation, handleRestaurantTurn } from "@/lib/callEngine";
+import {
+  loadCall,
+  loadReservation,
+  handleRestaurantTurn,
+  activeLanguage,
+} from "@/lib/callEngine";
 import { speechLocaleFor } from "@/lib/locale";
 
 export const runtime = "nodejs";
@@ -31,10 +36,13 @@ export async function POST(request: NextRequest) {
 
   const transcript = form.SpeechResult ?? "";
   const confidence = form.Confidence ? Number(form.Confidence) : undefined;
-  const language = speechLocaleFor(reservation.phrasePack.language, reservation.phoneNumber);
   const gatherPath = `/api/twilio/gather?callId=${encodeURIComponent(callId)}`;
 
   const step = await handleRestaurantTurn(call, reservation, transcript, confidence);
+
+  // Locale is derived AFTER processing — the turn may have switched the call
+  // language (e.g. the restaurant answered in Mandarin).
+  const language = speechLocaleFor(activeLanguage(call, reservation), reservation.phoneNumber);
 
   if (step.hangup) {
     return twimlResponse(buildTwiml({ playUrls: step.playUrls, hangup: true, actionPath: "", language }));

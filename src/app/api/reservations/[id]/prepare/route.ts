@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { getJSON, setJSON } from "@/lib/store";
 import { generatePhrasePack } from "@/lib/phrasegen";
+import { defaultAltLanguage } from "@/lib/locale";
 import type { ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -23,6 +24,22 @@ export async function POST(
 
   try {
     reservation.phrasePack = await generatePhrasePack(reservation);
+
+    // Fallback-language pack (e.g. Mandarin for Singapore) so the agent can
+    // adapt mid-call if the restaurant answers in another language.
+    const altLanguage =
+      reservation.altLanguage ??
+      defaultAltLanguage(reservation.language, reservation.phoneNumber);
+    if (altLanguage && altLanguage !== reservation.language) {
+      try {
+        reservation.altLanguage = altLanguage;
+        reservation.altPhrasePack = await generatePhrasePack(reservation, altLanguage);
+      } catch (err) {
+        // A missing fallback pack shouldn't block the call — log and continue.
+        console.error("Fallback-language phrase pack generation failed:", err);
+      }
+    }
+
     reservation.status = "ready";
     reservation.error = undefined;
   } catch (err) {

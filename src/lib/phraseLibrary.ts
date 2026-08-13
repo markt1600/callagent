@@ -12,7 +12,7 @@ import { storeAudio } from "./audioStorage";
 import { getJSON, setJSON, listJSON } from "./store";
 import type { LibraryEntry, SupportedLanguage } from "./types";
 
-const LANGUAGE_CODES: Record<SupportedLanguage, string> = { ja: "ja", en: "en" };
+const LANGUAGE_CODES: Record<SupportedLanguage, string> = { ja: "ja", en: "en", zh: "zh" };
 
 function normalizeText(text: string): string {
   return text.trim().replace(/\s+/g, " ");

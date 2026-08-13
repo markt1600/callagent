@@ -3,10 +3,17 @@
 // decision logic is testable.
 
 import { getJSON, setJSON } from "./store";
-import { matchIntent, generateDynamicReply } from "./intent";
+import { matchIntent, matchByKeywords, generateDynamicReply } from "./intent";
 import { getOrSynthesize } from "./phraseLibrary";
 import { translate } from "./translate";
-import type { CallSession, Phrase, PhrasePack, ReservationRequest } from "./types";
+import { containsHan } from "./locale";
+import type {
+  CallSession,
+  Phrase,
+  PhrasePack,
+  ReservationRequest,
+  SupportedLanguage,
+} from "./types";
 
 export async function loadCall(callId: string): Promise<CallSession | null> {
   return getJSON<CallSession>(`call:${callId}`);
@@ -36,6 +43,23 @@ export function phraseByCategory(pack: PhrasePack, category: Phrase["category"])
   return pack.phrases.find((p) => p.category === category) ?? null;
 }
 
+/** Language the call is currently conducted in. */
+export function activeLanguage(
+  call: CallSession,
+  reservation: ReservationRequest,
+): SupportedLanguage {
+  return call.activeLanguage ?? reservation.phrasePack?.language ?? reservation.language;
+}
+
+/** Phrase pack for the call's current language. */
+export function activePack(call: CallSession, reservation: ReservationRequest): PhrasePack {
+  const lang = activeLanguage(call, reservation);
+  if (reservation.altPhrasePack && reservation.altPhrasePack.language === lang) {
+    return reservation.altPhrasePack;
+  }
+  return reservation.phrasePack!;
+}
+
 export interface NextStep {
   /** Audio URLs to play, in order */
   playUrls: string[];
@@ -55,7 +79,13 @@ export async function handleRestaurantTurn(
   transcript: string,
   confidence: number | undefined,
 ): Promise<NextStep> {
-  const pack = reservation.phrasePack!;
+  let pack = activePack(call, reservation);
+  const altPack =
+    reservation.altPhrasePack && reservation.altPhrasePack.language !== pack.language
+      ? reservation.altPhrasePack
+      : reservation.phrasePack && reservation.phrasePack.language !== pack.language
+        ? reservation.phrasePack
+        : null;
   const now = new Date().toISOString();
 
   if (transcript.trim()) {
@@ -68,6 +98,19 @@ export async function handleRestaurantTurn(
     return { playUrls: [], relayHold: true };
   }
 
+  // Hard language signal: Han characters while the active pack is not
+  // Chinese/Japanese means the recognizer heard Chinese — switch immediately.
+  if (
+    transcript.trim() &&
+    altPack &&
+    altPack.language === "zh" &&
+    pack.language === "en" &&
+    containsHan(transcript)
+  ) {
+    call.activeLanguage = altPack.language;
+    pack = altPack;
+  }
+
   // Empty transcript (gather timed out / silence): nudge with a clarify phrase.
   if (!transcript.trim()) {
     const clarify = phraseByCategory(pack, "clarify");
@@ -76,7 +119,18 @@ export async function handleRestaurantTurn(
   }
 
   // --- Tier 1 + 2: match against pre-generated expectations -----------------
-  const match = await matchIntent(transcript, pack);
+  let match = await matchIntent(transcript, pack);
+
+  // If the active language doesn't fit, maybe the other side is speaking the
+  // fallback language (e.g. Mandarin in Singapore) — check its pack too.
+  if (!match && altPack) {
+    const altMatch = matchByKeywords(transcript, altPack);
+    if (altMatch) {
+      call.activeLanguage = altPack.language;
+      pack = altPack;
+      match = altMatch;
+    }
+  }
 
   if (match) {
     call.unmatchedStreak = 0;
@@ -126,6 +180,29 @@ export async function handleRestaurantTurn(
   // --- Unmatched utterance ---------------------------------------------------
   call.unmatchedStreak += 1;
 
+  // Language probe: on the first miss, if a fallback-language pack exists
+  // (e.g. Mandarin for Singapore), assume a language mismatch — switch the
+  // recognizer + phrases to the fallback and ask "please repeat" in it. If
+  // the next utterance matches the fallback pack, the call continues there.
+  if (altPack && !call.languageProbed) {
+    call.languageProbed = true;
+    call.activeLanguage = altPack.language;
+    const probe =
+      phraseByCategory(altPack, "clarify") ?? phraseByCategory(altPack, "greeting");
+    if (probe?.audioUrl) {
+      call.turns.push({
+        ts: now,
+        speaker: "agent",
+        text: probe.text,
+        english: probe.english,
+        source: "cached",
+        intent: "language_probe",
+      });
+    }
+    await saveCall(call);
+    return { playUrls: probe?.audioUrl ? [probe.audioUrl] : [] };
+  }
+
   // Two misses in a row: escalate to the human translation relay.
   if (call.unmatchedStreak >= 2) {
     call.relayActive = true;
@@ -166,9 +243,11 @@ export async function queueOperatorMessage(
   hangupAfter = false,
 ): Promise<void> {
   const reservation = await loadReservation(call.reservationId);
-  const language = reservation?.phrasePack?.language ?? "ja";
+  const language = reservation
+    ? activeLanguage(call, reservation)
+    : (call.activeLanguage ?? "ja");
   const localized =
-    language === "en" ? englishText : await translate(englishText, "en", "ja");
+    language === "en" ? englishText : await translate(englishText, "en", language);
   const audio = await getOrSynthesize(localized, language, "realtime");
   call.relayActive = true;
   call.pendingOperator = {
@@ -183,18 +262,24 @@ export async function queueOperatorMessage(
 /** Translate any untranslated restaurant turns (called lazily from the dashboard). */
 export async function backfillTranslations(call: CallSession): Promise<CallSession> {
   const reservation = await loadReservation(call.reservationId);
-  // English-language calls need no gloss — the transcript is already readable.
-  if ((reservation?.phrasePack?.language ?? "ja") === "en") return call;
+  const primary = reservation?.phrasePack?.language ?? "ja";
+  const alt = reservation?.altPhrasePack?.language;
 
   let dirty = false;
   for (const turn of call.turns) {
-    if (turn.speaker === "restaurant" && !turn.english && turn.text.trim()) {
-      try {
-        turn.english = await translate(turn.text, "ja", "en");
-        dirty = true;
-      } catch {
-        // leave untranslated; retried next fetch
-      }
+    if (turn.speaker !== "restaurant" || turn.english || !turn.text.trim()) continue;
+    // ASCII-only text is already readable English — no gloss needed.
+    // eslint-disable-next-line no-control-regex
+    if (/^[\x00-\x7F]*$/.test(turn.text)) continue;
+    // Guess the turn's language: Han text on an English-primary call means
+    // the fallback language (e.g. Mandarin); otherwise the primary language.
+    const from: SupportedLanguage =
+      primary === "en" ? (alt ?? (containsHan(turn.text) ? "zh" : "ja")) : primary;
+    try {
+      turn.english = await translate(turn.text, from, "en");
+      dirty = true;
+    } catch {
+      // leave untranslated; retried next fetch
     }
   }
   if (dirty) await saveCall(call);

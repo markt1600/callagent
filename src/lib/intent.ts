@@ -117,10 +117,16 @@ export async function generateDynamicReply(
   conversationSoFar: string,
 ): Promise<string> {
   const client = anthropic();
+  const replyLanguage =
+    pack.language === "ja"
+      ? "polite Japanese (keigo appropriate for a customer)"
+      : pack.language === "zh"
+        ? "polite spoken Mandarin (普通话)"
+        : "English";
   const response = await client.messages.create({
     model: config.anthropic.fastModel,
     max_tokens: 300,
-    system: `You are an AI agent on a live phone call making a restaurant reservation. Scenario: ${pack.scenario}. Reply with ONLY the exact words to speak next, in ${pack.language === "ja" ? "polite Japanese (keigo appropriate for a customer)" : "English"}. One or two short sentences. No commentary, no quotes.`,
+    system: `You are an AI agent on a live phone call making a restaurant reservation. Scenario: ${pack.scenario}. Reply with ONLY the exact words to speak next, in ${replyLanguage}. One or two short sentences. No commentary, no quotes.`,
     messages: [
       {
         role: "user",

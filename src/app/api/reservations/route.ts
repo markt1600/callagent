@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     partySize: Number(body.partySize),
     date: body.date,
     time: body.time,
-    language: body.language === "en" ? "en" : "ja",
+    language: body.language === "en" ? "en" : body.language === "zh" ? "zh" : "ja",
     callerName: body.callerName,
     specialRequests: body.specialRequests || undefined,
     status: "created",

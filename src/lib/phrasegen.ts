@@ -57,19 +57,34 @@ const PhrasePackSchema = z.object({
   expectedUtterances: z.array(ExpectedUtteranceSchema),
 });
 
-function buildPrompt(req: ReservationRequest): string {
-  const isJa = req.language === "ja";
-  const langName = isJa ? "Japanese" : "English";
-  const styleGuide = isJa
-    ? `use appropriate keigo for a customer calling a restaurant; write numbers, dates and times the way they are SPOKEN, e.g. 「8月20日水曜日、19時に2名」`
-    : `use polite, natural spoken English suitable for an international phone call (the restaurant staff may not be native English speakers — keep sentences short and unambiguous); write numbers, dates and times the way they are SPOKEN, e.g. "a table for two on Wednesday, August the twentieth, at seven pm"`;
-  const repeatExample = isJa
-    ? `("すみません、もう一度お願いします")`
-    : `("Sorry, could you say that again, please?")`;
-  const holdExample = isJa ? `("少々お待ちください")` : `("One moment, please.")`;
-  const utteranceExample = isJa
-    ? `(e.g. ask_party_size → 「何名様」「何名様でしょうか」, keywords 「何名」「人数」)`
-    : `(e.g. ask_party_size → "For how many people?" / "How many in your party?", keywords "how many", "people", "pax")`;
+const LANGUAGE_STYLE = {
+  ja: {
+    name: "Japanese",
+    styleGuide: `use appropriate keigo for a customer calling a restaurant; write numbers, dates and times the way they are SPOKEN, e.g. 「8月20日水曜日、19時に2名」`,
+    repeatExample: `("すみません、もう一度お願いします")`,
+    holdExample: `("少々お待ちください")`,
+    utteranceExample: `(e.g. ask_party_size → 「何名様」「何名様でしょうか」, keywords 「何名」「人数」)`,
+  },
+  en: {
+    name: "English",
+    styleGuide: `use polite, natural spoken English suitable for an international phone call (the restaurant staff may not be native English speakers — keep sentences short and unambiguous); write numbers, dates and times the way they are SPOKEN, e.g. "a table for two on Wednesday, August the twentieth, at seven pm"`,
+    repeatExample: `("Sorry, could you say that again, please?")`,
+    holdExample: `("One moment, please.")`,
+    utteranceExample: `(e.g. ask_party_size → "For how many people?" / "How many in your party?", keywords "how many", "people", "pax")`,
+  },
+  zh: {
+    name: "Mandarin Chinese",
+    styleGuide: `use polite spoken Mandarin (普通话, simplified characters) appropriate for phoning a restaurant, e.g. in Singapore; write numbers, dates and times the way they are SPOKEN, e.g. 「八月二十号星期三，晚上七点，两位」`,
+    repeatExample: `("不好意思，请再说一遍好吗？")`,
+    holdExample: `("请稍等一下。")`,
+    utteranceExample: `(e.g. ask_party_size → 「几位？」「请问几位用餐？」, keywords 「几位」「人数」)`,
+  },
+} as const;
+
+function buildPrompt(req: ReservationRequest, language: ReservationRequest["language"]): string {
+  const style = LANGUAGE_STYLE[language];
+  const langName = style.name;
+  const { styleGuide, repeatExample, holdExample, utteranceExample } = style;
 
   return `You are preparing a phone script for an AI agent that will call a restaurant and make a dinner reservation. The call will be conducted in ${langName}.
 
@@ -90,14 +105,22 @@ Produce a complete phrase pack:
 Phrases used by common intents (greetings, confirmations, "please repeat", hold, thanks, goodbye) should use the most standard, conventional wording — identical wording across different reservations lets the system reuse cached audio.`;
 }
 
-/** Generate a phrase pack with Claude and pre-render all audio through the library. */
-export async function generatePhrasePack(req: ReservationRequest): Promise<PhrasePack> {
+/**
+ * Generate a phrase pack with Claude and pre-render all audio through the
+ * library. `languageOverride` produces a pack in a different language than
+ * the reservation's primary (used for the Mandarin fallback pack).
+ */
+export async function generatePhrasePack(
+  req: ReservationRequest,
+  languageOverride?: ReservationRequest["language"],
+): Promise<PhrasePack> {
   const client = anthropic();
+  const language = languageOverride ?? req.language;
 
   const response = await client.beta.messages.parse({
     model: config.anthropic.smartModel,
     max_tokens: 16000,
-    messages: [{ role: "user", content: buildPrompt(req) }],
+    messages: [{ role: "user", content: buildPrompt(req, language) }],
     output_format: betaZodOutputFormat(PhrasePackSchema),
   });
   assertNotRefusal(response);
@@ -110,7 +133,7 @@ export async function generatePhrasePack(req: ReservationRequest): Promise<Phras
   const phrases: Phrase[] = [];
   for (const p of parsed.phrases) {
     try {
-      const result = await getOrSynthesize(p.text, req.language, "prerender");
+      const result = await getOrSynthesize(p.text, language, "prerender");
       if (result.cached) libraryHits += 1;
       else newlySynthesized += 1;
       phrases.push({ ...p, audioUrl: result.audioUrl, libraryKey: result.key });
@@ -125,7 +148,7 @@ export async function generatePhrasePack(req: ReservationRequest): Promise<Phras
   const expectedUtterances: ExpectedUtterance[] = parsed.expectedUtterances;
 
   return {
-    language: req.language,
+    language,
     scenario: parsed.scenario,
     phrases,
     expectedUtterances,

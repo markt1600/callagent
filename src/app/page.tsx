@@ -220,7 +220,14 @@ export default function Dashboard() {
             >
               <option value="ja">Japanese</option>
               <option value="en">English</option>
+              <option value="zh">Mandarin</option>
             </select>
+            {form.language === "en" && form.phoneNumber.startsWith("+65") && (
+              <p className="sub" style={{ margin: "0.3rem 0 0" }}>
+                Singapore number: a Mandarin fallback pack will be prepared automatically in
+                case the restaurant answers in Mandarin.
+              </p>
+            )}
             <label>Booking name</label>
             <input
               value={form.callerName}
@@ -334,6 +341,8 @@ export default function Dashboard() {
                     Phrase pack: {selected.phrasePack.phrases.length} phrases —{" "}
                     {selected.phrasePack.cacheStats.libraryHits} reused from library,{" "}
                     {selected.phrasePack.cacheStats.newlySynthesized} newly synthesized.
+                    {selected.altPhrasePack &&
+                      ` Fallback pack (${selected.altPhrasePack.language}): ${selected.altPhrasePack.phrases.length} phrases ready.`}
                   </p>
                 )}
               </div>
@@ -373,9 +382,11 @@ export default function Dashboard() {
                   {activeCall.status === "in_progress" && activeCall.mode === "ivr" && (
                     <div style={{ marginTop: "0.9rem" }}>
                       <label>
-                        {selected.language === "ja"
+                        {activeCall.activeLanguage === "ja" || (!activeCall.activeLanguage && selected.language === "ja")
                           ? "Operator relay — type in English, spoken in Japanese"
-                          : "Operator relay — type your reply, spoken on the call"}
+                          : activeCall.activeLanguage === "zh" || (!activeCall.activeLanguage && selected.language === "zh")
+                            ? "Operator relay — type in English, spoken in Mandarin"
+                            : "Operator relay — type your reply, spoken on the call"}
                       </label>
                       <textarea
                         value={operatorText}
@@ -384,7 +395,9 @@ export default function Dashboard() {
                       />
                       <div className="row">
                         <button onClick={() => sendOperator(false)} disabled={busy !== null}>
-                          {selected.language === "ja" ? "Send (translated)" : "Send"}
+                          {(activeCall.activeLanguage ?? selected.language) === "en"
+                            ? "Send"
+                            : "Send (translated)"}
                         </button>
                         <button
                           className="danger"

@@ -2,7 +2,9 @@
 
 An AI agent that places **live telephone calls** (e.g. "call XXX to reach Restaurant Y and book a table for 2 on the 20th at 19:00, in Japanese"). Built with Next.js and deployed on **Vercel**, using **ElevenLabs** for speech, **Twilio** for telephony, and **Claude** for phrase generation, intent matching, and live translation.
 
-**Japanese and English work out of the box** — pick the call language per reservation. Japanese calls are scripted in natural keigo; English calls (e.g. restaurants in Singapore) are scripted in polite international English, and Twilio speech recognition automatically uses the accent-matched locale for the destination (+65 → `en-SG`, +44 → `en-GB`, +61 → `en-AU`, …). The phrase library keeps Japanese and English audio side by side, keyed per language.
+**Japanese, English, and Mandarin work out of the box** — pick the call language per reservation. Japanese calls are scripted in natural keigo; English calls (e.g. restaurants in Singapore) are scripted in polite international English, and Twilio speech recognition automatically uses the accent-matched locale for the destination (+65 → `en-SG`, +44 → `en-GB`, +61 → `en-AU`, …). The phrase library keeps all languages side by side, keyed per language.
+
+**Automatic mid-call language adaptation:** Singapore restaurants often answer in Mandarin. For English calls to +65, the prepare step automatically generates a **second, Mandarin phrase pack** alongside the English one. During the call, if the restaurant's speech doesn't match English expectations (or Han characters show up in the transcript), the agent switches: recognizer locale flips to `cmn-Hans-CN`, cached Mandarin phrases take over, it asks 「不好意思，请再说一遍好吗？」, and the rest of the call — including operator-relay translation — runs in Mandarin. If neither language works, it escalates to the human translation relay as usual. In Agent mode, enable Mandarin on your ElevenLabs agent and turn on its built-in language-detection tool for the same behavior.
 
 ## The core idea: pre-generate everything, cache forever
 

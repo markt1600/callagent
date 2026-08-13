@@ -1,6 +1,6 @@
 // Core domain types shared across the app.
 
-export type SupportedLanguage = "ja" | "en";
+export type SupportedLanguage = "ja" | "en" | "zh";
 
 export interface ReservationRequest {
   id: string;
@@ -26,6 +26,13 @@ export interface ReservationRequest {
     | "completed"
     | "failed";
   phrasePack?: PhrasePack;
+  /**
+   * Fallback language the callee might answer in (e.g. Mandarin for
+   * Singapore). Auto-set for +65 English calls; a second phrase pack is
+   * prepared so the agent can switch mid-call.
+   */
+  altLanguage?: SupportedLanguage;
+  altPhrasePack?: PhrasePack;
   /** Result summary once a call finishes */
   outcome?: {
     success: boolean;
@@ -129,6 +136,14 @@ export interface CallSession {
   } | null;
   /** Count of consecutive unmatched utterances (drives relay escalation) */
   unmatchedStreak: number;
+  /**
+   * Language the call is currently being conducted in. Starts as the
+   * reservation language; may switch to altLanguage mid-call (e.g. the
+   * restaurant answers in Mandarin).
+   */
+  activeLanguage?: SupportedLanguage;
+  /** True once we've tried switching to the alt language */
+  languageProbed?: boolean;
 }
 
 /** Persistent phrase-library entry: one synthesized audio file, reused forever. */

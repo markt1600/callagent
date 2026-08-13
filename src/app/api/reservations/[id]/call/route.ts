@@ -39,6 +39,8 @@ export async function POST(
     turns: [],
     relayActive: false,
     unmatchedStreak: 0,
+    activeLanguage: reservation.phrasePack?.language ?? reservation.language,
+    languageProbed: false,
   };
 
   try {

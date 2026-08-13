@@ -18,8 +18,27 @@ const ENGLISH_LOCALES_BY_PREFIX: [string, string][] = [
 
 export function speechLocaleFor(language: SupportedLanguage, phoneNumber: string): string {
   if (language === "ja") return "ja-JP";
+  if (language === "zh") {
+    // Mandarin: simplified for Singapore/mainland, traditional for Taiwan.
+    return phoneNumber.startsWith("+886") ? "cmn-Hant-TW" : "cmn-Hans-CN";
+  }
   for (const [prefix, locale] of ENGLISH_LOCALES_BY_PREFIX) {
     if (phoneNumber.startsWith(prefix)) return locale;
   }
   return "en-US";
+}
+
+/** Fallback language callers in this region commonly answer in, if any. */
+export function defaultAltLanguage(
+  language: SupportedLanguage,
+  phoneNumber: string,
+): SupportedLanguage | undefined {
+  // Singapore restaurants frequently answer in Mandarin.
+  if (language === "en" && phoneNumber.startsWith("+65")) return "zh";
+  return undefined;
+}
+
+/** True if the text contains CJK Han characters (a strong Chinese signal). */
+export function containsHan(text: string): boolean {
+  return /[一-鿿]/.test(text);
 }
