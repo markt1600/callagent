@@ -6,8 +6,9 @@
 // we require it — prevents outsiders from triggering dials.
 
 import { NextRequest, NextResponse } from "next/server";
-import { listJSON } from "@/lib/store";
+import { listJSON, setJSON } from "@/lib/store";
 import { dispatchCall } from "@/lib/dispatch";
+import { isWithinCallWindow, nextCallWindowTime } from "@/lib/callWindow";
 import type { ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -27,6 +28,14 @@ export async function GET(request: NextRequest) {
 
   const dispatched: string[] = [];
   for (const reservation of due) {
+    // A user-scheduled time outside calling hours gets pushed to the next
+    // window instead of dialing at a bad hour.
+    if (!isWithinCallWindow(new Date(), reservation.phoneNumber)) {
+      reservation.callAt = nextCallWindowTime(new Date(), reservation.phoneNumber).toISOString();
+      await setJSON(`res:${reservation.id}`, reservation);
+      dispatched.push(`${reservation.id}:deferred_to_window`);
+      continue;
+    }
     const { call } = await dispatchCall(reservation, "agent");
     dispatched.push(`${reservation.id}:${call.status}`);
   }

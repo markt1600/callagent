@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { setJSON, listJSON } from "@/lib/store";
 import { dispatchCall } from "@/lib/dispatch";
 import { ensurePhrasePacks } from "@/lib/preparePhrases";
+import { isWithinCallWindow, nextCallWindowTime } from "@/lib/callWindow";
 import type { ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -91,10 +92,17 @@ async function handleCreate(request: NextRequest) {
   };
   await setJSON(`res:${reservation.id}`, reservation);
 
-  // No schedule requested: dial right away (Agent mode — no phrase prep needed).
+  // No schedule requested: dial right away if we're inside the destination's
+  // calling window (12:00–19:00 local); otherwise queue for the next opening.
   if (!callAt) {
-    const result = await dispatchCall(reservation, "agent");
-    reservation = result.reservation;
+    if (isWithinCallWindow(new Date(), reservation.phoneNumber)) {
+      const result = await dispatchCall(reservation, "agent");
+      reservation = result.reservation;
+    } else {
+      reservation.callAt = nextCallWindowTime(new Date(), reservation.phoneNumber).toISOString();
+      reservation.status = "scheduled";
+      await setJSON(`res:${reservation.id}`, reservation);
+    }
   }
 
   // Pre-script the call in the background (after the response is sent):

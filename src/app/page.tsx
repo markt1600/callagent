@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [reservations, setReservations] = useState<ReservationRequest[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
   const [calls, setCalls] = useState<CallSession[]>([]);
   const [library, setLibrary] = useState<LibraryStats | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -36,7 +37,10 @@ export default function Dashboard() {
 
   const selected = reservations.find((r) => r.id === selectedId) ?? null;
   const activeCall =
-    calls.find((c) => c.status === "in_progress") ?? calls[0] ?? null;
+    calls.find((c) => c.id === selectedCallId) ??
+    calls.find((c) => c.status === "in_progress") ??
+    calls[0] ??
+    null;
 
   const refresh = useCallback(async () => {
     try {
@@ -59,16 +63,20 @@ export default function Dashboard() {
       const res = await fetch(`/api/calls?reservationId=${selectedId}`);
       const data = await res.json();
       const list: CallSession[] = data.calls ?? [];
-      // Pull the freshest copy (with lazy translations) of the newest call.
-      if (list[0]) {
-        const detail = await fetch(`/api/calls/${list[0].id}`).then((r) => r.json());
-        if (detail.call) list[0] = detail.call;
+      // Pull the freshest copy (with lazy translations) of the viewed call.
+      const focusIdx = Math.max(
+        0,
+        list.findIndex((c) => c.id === selectedCallId),
+      );
+      if (list[focusIdx]) {
+        const detail = await fetch(`/api/calls/${list[focusIdx].id}`).then((r) => r.json());
+        if (detail.call) list[focusIdx] = detail.call;
       }
       setCalls(list);
     } catch {
       /* transient */
     }
-  }, [selectedId]);
+  }, [selectedId, selectedCallId]);
 
   useEffect(() => {
     refresh();
@@ -322,8 +330,13 @@ export default function Dashboard() {
             {reservations.map((r) => (
               <div
                 key={r.id}
-                className={`res-item ${selectedId === r.id ? "selected" : ""}`}
-                onClick={() => setSelectedId(r.id)}
+                className={`res-item ${selectedId === r.id ? "selected" : ""} ${
+                  r.outcome ? (r.outcome.success ? "won" : "lost") : r.status === "failed" ? "lost" : ""
+                }`}
+                onClick={() => {
+                  setSelectedId(r.id);
+                  setSelectedCallId(null);
+                }}
               >
                 <div className="row" style={{ justifyContent: "space-between" }}>
                   <strong>{r.restaurantName}</strong>
@@ -357,7 +370,9 @@ export default function Dashboard() {
                 </h2>
                 {selected.status === "scheduled" && selected.callAt && (
                   <p className="sub" style={{ margin: "0 0 0.5rem" }}>
-                    Call scheduled for {new Date(selected.callAt).toLocaleString()}
+                    {selected.attempts
+                      ? `No answer on attempt ${selected.attempts} — retry scheduled for ${new Date(selected.callAt).toLocaleString()} (max 3 attempts, 12:00–19:00 local time)`
+                      : `Call scheduled for ${new Date(selected.callAt).toLocaleString()}`}
                   </p>
                 )}
                 <div className="row">
@@ -407,10 +422,34 @@ export default function Dashboard() {
                 )}
               </div>
 
+              {calls.length > 0 && (
+                <div className="panel">
+                  <h2>Call log ({calls.length} attempt{calls.length > 1 ? "s" : ""})</h2>
+                  {calls.map((c, i) => (
+                    <div
+                      key={c.id}
+                      className={`res-item ${activeCall?.id === c.id ? "selected" : ""}`}
+                      onClick={() => setSelectedCallId(c.id)}
+                    >
+                      <div className="row" style={{ justifyContent: "space-between" }}>
+                        <span>
+                          Attempt {calls.length - i} · {c.mode}
+                        </span>
+                        <span className={`badge ${c.status}`}>{c.status.replace("_", " ")}</span>
+                      </div>
+                      <div className="meta">
+                        {new Date(c.startedAt).toLocaleString()}
+                        {c.turns.length > 0 ? ` · ${c.turns.length} turns` : ""}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {activeCall && (
                 <div className="panel">
                   <h2>
-                    Call ({activeCall.mode}){" "}
+                    Transcript ({activeCall.mode}){" "}
                     <span className={`badge ${activeCall.status}`}>
                       {activeCall.status.replace("_", " ")}
                     </span>

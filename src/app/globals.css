@@ -95,6 +95,9 @@ button.danger { background: var(--err); }
 }
 .res-item:hover, .res-item.selected { border-color: var(--accent); }
 .res-item .meta { font-size: 0.8rem; color: var(--muted); }
+.res-item.won { border-color: var(--ok); background: rgba(62, 207, 142, 0.08); }
+.res-item.lost { border-color: var(--err); background: rgba(239, 106, 106, 0.08); }
+.res-item.won.selected, .res-item.lost.selected { outline: 2px solid var(--accent); }
 
 .transcript { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
 .turn { padding: 0.5rem 0.7rem; border-radius: 8px; max-width: 85%; font-size: 0.88rem; }

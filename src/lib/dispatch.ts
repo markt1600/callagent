@@ -34,6 +34,8 @@ export async function dispatchCall(
     languageProbed: false,
   };
 
+  reservation.attempts = (reservation.attempts ?? 0) + 1;
+
   try {
     if (mode === "ivr") {
       if (!reservation.phrasePack) {

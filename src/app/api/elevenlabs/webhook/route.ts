@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { config } from "@/lib/config";
 import { listJSON, setJSON, getJSON } from "@/lib/store";
 import { sendConfirmation } from "@/lib/notify";
+import { handleNoAnswer } from "@/lib/retry";
 import type { CallSession, ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -53,6 +54,24 @@ export async function POST(request: NextRequest) {
       };
     };
   };
+
+  // No-answer / failed dial in Agent mode: mark the call and run the retry
+  // policy (up to 3 attempts inside calling hours).
+  if (payload.type === "call_initiation_failure" && payload.data) {
+    const calls = await listJSON<CallSession>("call:");
+    const call =
+      calls.find((c) => c.elevenLabsConversationId === payload.data!.conversation_id) ??
+      calls
+        .filter((c) => c.mode === "agent" && c.status === "in_progress")
+        .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+    if (call) {
+      call.status = "no_answer";
+      call.endedAt = new Date().toISOString();
+      await setJSON(`call:${call.id}`, call);
+      await handleNoAnswer(call.reservationId);
+    }
+    return NextResponse.json({ ok: true });
+  }
 
   if (payload.type !== "post_call_transcription" || !payload.data) {
     return NextResponse.json({ ok: true });

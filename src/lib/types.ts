@@ -37,6 +37,8 @@ export interface ReservationRequest {
     | "failed";
   /** When to place the call (ISO). Absent = call immediately on creation. */
   callAt?: string;
+  /** Number of call attempts made so far (max 3 on no-answer). */
+  attempts?: number;
   phrasePack?: PhrasePack;
   /**
    * Fallback language the callee might answer in (e.g. Mandarin for
