@@ -11,9 +11,16 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function GET() {
-  const reservations = await listJSON<ReservationRequest>("res:");
-  reservations.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return NextResponse.json({ reservations });
+  try {
+    const reservations = await listJSON<ReservationRequest>("res:");
+    reservations.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return NextResponse.json({ reservations });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      { status: 500 },
+    );
+  }
 }
 
 /**
@@ -21,6 +28,18 @@ export async function GET() {
  * (Agent mode). Pass `callAt` (ISO datetime, future) to schedule it instead.
  */
 export async function POST(request: NextRequest) {
+  try {
+    return await handleCreate(request);
+  } catch (err) {
+    // Surface the real cause (bad KV credentials, storage failures, ...)
+    // instead of an opaque 500.
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Reservation creation failed:", err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+async function handleCreate(request: NextRequest) {
   const body = await request.json();
   const required = ["phoneNumber", "restaurantName", "partySize", "date", "time", "callerName"];
   for (const field of required) {
