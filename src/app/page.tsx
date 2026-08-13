@@ -17,6 +17,7 @@ const EMPTY_FORM = {
   time: "19:00",
   language: "ja",
   callerName: "",
+  contactPhone: "",
   specialRequests: "",
   callTiming: "now" as "now" | "scheduled",
   callAt: "",
@@ -238,6 +239,12 @@ export default function Dashboard() {
               value={form.callerName}
               onChange={(e) => setForm({ ...form, callerName: e.target.value })}
               placeholder="Tanaka"
+            />
+            <label>Guest contact number (the number given to the restaurant)</label>
+            <input
+              value={form.contactPhone}
+              onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
+              placeholder="+6591234567"
             />
             <label>Special requests (optional)</label>
             <textarea

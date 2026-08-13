@@ -53,6 +53,12 @@ async function handleCreate(request: NextRequest) {
       { status: 400 },
     );
   }
+  if (body.contactPhone && !/^\+?[\d\s-]{7,20}$/.test(body.contactPhone)) {
+    return NextResponse.json(
+      { error: "contactPhone must be a phone number, e.g. +6591234567" },
+      { status: 400 },
+    );
+  }
 
   let callAt: string | undefined;
   if (body.callAt) {
@@ -74,6 +80,7 @@ async function handleCreate(request: NextRequest) {
     time: body.time,
     language: body.language === "en" ? "en" : body.language === "zh" ? "zh" : "ja",
     callerName: body.callerName,
+    contactPhone: body.contactPhone || undefined,
     specialRequests: body.specialRequests || undefined,
     status: callAt ? "scheduled" : "created",
     callAt,

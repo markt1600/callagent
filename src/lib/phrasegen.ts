@@ -94,6 +94,7 @@ Reservation details:
 - Date: ${req.date}
 - Time: ${req.time}
 - Booking name: ${req.callerName}
+- Guest contact number: ${req.contactPhone ?? "not provided — if asked, apologize and offer the booking name instead"} (this is the ONLY phone number that may be given out; read it digit by digit in the phrase)
 ${req.specialRequests ? `- Special requests: ${req.specialRequests}` : ""}
 
 Produce a complete phrase pack:

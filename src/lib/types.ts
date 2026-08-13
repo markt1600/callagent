@@ -16,6 +16,11 @@ export interface ReservationRequest {
   /** Language the call should be conducted in */
   language: SupportedLanguage;
   callerName: string;
+  /**
+   * The guest's contact number for the booking — the ONLY number the agent
+   * gives out when the restaurant asks for a phone number.
+   */
+  contactPhone?: string;
   specialRequests?: string;
   /** Lifecycle status */
   status:
