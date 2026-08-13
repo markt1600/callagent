@@ -13,7 +13,7 @@ const OutcomeSchema = z.object({
   confirmed: z
     .boolean()
     .describe(
-      "True ONLY if the restaurant explicitly agreed to the booking (date, time, party size). Confused, unresolved, cut-off, or declined calls are false.",
+      "True if the restaurant agreed to the booking (date, time, party size). Explicit acceptance counts, and so does a polite acknowledgment (e.g. 'thank you', 'see you then') after the agent stated or read back the full booking details, as long as the restaurant raised no objection. Declined, confused, cut-off-mid-request, or wrong-number calls are false.",
     ),
   confirmedTime: z
     .string()
@@ -60,7 +60,7 @@ The agent was calling ${reservation.restaurantName} to cancel the booking under 
 Transcript:
 ${transcript}
 
-Be strict: mark confirmed=true ONLY if the restaurant clearly acknowledged and accepted the cancellation. Confusion, hang-ups, or an unresolved ending are confirmed=false.`
+Decision rule: mark confirmed=true if the restaurant acknowledged the cancellation. Explicit acceptance counts, and so does a polite, non-negative acknowledgment ("thank you", "understood", "かしこまりました") after the agent clearly stated which booking to cancel, with no objection raised. Mark confirmed=false only for: a refusal, the restaurant unable to find the booking without resolution, obvious mutual confusion, or the call cutting off before the cancellation request was conveyed.`
       : `Audit this restaurant-reservation phone call and decide whether the booking was actually made.
 
 The agent was calling to request: a table for ${reservation.partySize} at ${reservation.restaurantName} on ${reservation.date} at ${reservation.time}${
@@ -72,7 +72,7 @@ The agent was calling to request: a table for ${reservation.partySize} at ${rese
 Transcript:
 ${transcript}
 
-Be strict: mark confirmed=true ONLY if the restaurant clearly accepted the reservation. Apologies, confusion, hang-ups, wrong-number exchanges, "we're full", or an unresolved ending are confirmed=false.${
+Decision rule: mark confirmed=true if the restaurant accepted the reservation. Explicit acceptance ("yes, we have you down", "かしこまりました") counts. ALSO count as accepted: the agent stated or read back the full booking details and the restaurant responded with a polite, non-negative acknowledgment ("thank you", "see you then", "ありがとうございます") without objecting or declining — restaurant staff often close a call this way instead of restating the booking. Mark confirmed=false only for: an explicit decline ("we're full", "we can't take that"), the restaurant objecting to the details without resolution, a wrong-number exchange, obvious mutual confusion, or the call cutting off BEFORE the booking details were fully conveyed.${
           reservation.preferences?.privateRoom
             ? " A PRIVATE ROOM was required for this booking — mark confirmed=true only if a private room was actually secured."
             : ""
