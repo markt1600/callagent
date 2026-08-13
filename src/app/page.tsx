@@ -193,7 +193,16 @@ export default function Dashboard() {
 
   return (
     <main>
-      <h1>Agentic Reservations</h1>
+      <h1
+        onClick={() => {
+          setSelectedId(null);
+          setSelectedCallId(null);
+        }}
+        style={{ cursor: "pointer" }}
+        title="Back to overview"
+      >
+        Agentic Reservations
+      </h1>
       <p className="sub">
         AI reservation agent for restaurants in Japan and Singapore — enter the details,
         and it calls the restaurant and books your table.
@@ -384,7 +393,8 @@ export default function Dashboard() {
                         : ""
                 }`}
                 onClick={() => {
-                  setSelectedId(r.id);
+                  // Tapping the selected card again deselects it.
+                  setSelectedId(selectedId === r.id ? null : r.id);
                   setSelectedCallId(null);
                 }}
               >
@@ -416,12 +426,25 @@ export default function Dashboard() {
           {selected ? (
             <>
               <div className="panel">
-                <h2>
-                  {selected.restaurantName}{" "}
-                  <span className={`badge ${selected.status}`}>
-                    {selected.status.replace("_", " ")}
-                  </span>
-                </h2>
+                <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
+                  <h2>
+                    {selected.restaurantName}{" "}
+                    <span className={`badge ${selected.status}`}>
+                      {selected.status.replace("_", " ")}
+                    </span>
+                  </h2>
+                  <button
+                    className="delete-btn"
+                    title="Close details"
+                    onClick={() => {
+                      setSelectedId(null);
+                      setSelectedCallId(null);
+                    }}
+                    style={{ fontSize: "1.1rem", color: "var(--muted)", flexShrink: 0 }}
+                  >
+                    ✕
+                  </button>
+                </div>
                 {selected.status === "scheduled" && selected.callAt && (
                   <p className="sub" style={{ margin: "0 0 0.5rem" }}>
                     {selected.attempts
