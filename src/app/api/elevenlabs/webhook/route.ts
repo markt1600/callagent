@@ -8,6 +8,7 @@ import { config } from "@/lib/config";
 import { listJSON, setJSON, getJSON } from "@/lib/store";
 import { sendConfirmation } from "@/lib/notify";
 import { handleNoAnswer } from "@/lib/retry";
+import { backfillTranslations } from "@/lib/callEngine";
 import type { CallSession, ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -114,9 +115,11 @@ export async function POST(request: NextRequest) {
       };
       await setJSON(`res:${reservationId}`, reservation);
     }
-    // Email the requester the outcome + transcript (no-op if not configured).
+    // Email the requester the outcome + transcript, auto-translated to
+    // English first (no-op if email isn't configured).
     try {
-      await sendConfirmation(reservationId, call ?? null);
+      const translated = call ? await backfillTranslations(call) : null;
+      await sendConfirmation(reservationId, translated);
     } catch (err) {
       console.error("Confirmation send failed:", err);
     }

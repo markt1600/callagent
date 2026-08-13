@@ -267,7 +267,9 @@ export async function backfillTranslations(call: CallSession): Promise<CallSessi
 
   let dirty = false;
   for (const turn of call.turns) {
-    if (turn.speaker !== "restaurant" || turn.english || !turn.text.trim()) continue;
+    // Translate every non-English line (agent and restaurant alike) so the
+    // dashboard and the emailed transcript are fully readable.
+    if (turn.english || !turn.text.trim()) continue;
     // ASCII-only text is already readable English — no gloss needed.
     // eslint-disable-next-line no-control-regex
     if (/^[\x00-\x7F]*$/.test(turn.text)) continue;
