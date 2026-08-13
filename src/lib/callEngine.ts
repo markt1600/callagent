@@ -270,9 +270,10 @@ export async function backfillTranslations(call: CallSession): Promise<CallSessi
     // Translate every non-English line (agent and restaurant alike) so the
     // dashboard and the emailed transcript are fully readable.
     if (turn.english || !turn.text.trim()) continue;
-    // ASCII-only text is already readable English — no gloss needed.
-    // eslint-disable-next-line no-control-regex
-    if (/^[\x00-\x7F]*$/.test(turn.text)) continue;
+    // Only gloss lines containing CJK script (kana, Han, halfwidth kana).
+    // Non-ASCII punctuation alone (em dashes, curly quotes) doesn't make a
+    // line non-English.
+    if (!/[぀-ヿ㐀-鿿豈-﫿ｦ-ﾟ]/.test(turn.text)) continue;
     // Guess the turn's language: Han text on an English-primary call means
     // the fallback language (e.g. Mandarin); otherwise the primary language.
     const from: SupportedLanguage =
