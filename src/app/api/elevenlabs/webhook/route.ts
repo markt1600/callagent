@@ -9,6 +9,9 @@ import { listJSON, setJSON, getJSON } from "@/lib/store";
 import { sendConfirmation } from "@/lib/notify";
 import { handleNoAnswer } from "@/lib/retry";
 import { backfillTranslations } from "@/lib/callEngine";
+import { analyzeOutcome } from "@/lib/analyzeCall";
+
+export const maxDuration = 120;
 import type { CallSession, ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -107,12 +110,20 @@ export async function POST(request: NextRequest) {
     const reservation = await getJSON<ReservationRequest>(`res:${reservationId}`);
     if (reservation) {
       reservation.status = "completed";
-      reservation.outcome = {
-        success: data.analysis?.call_successful === "success",
-        summary:
-          data.analysis?.transcript_summary ??
-          "Call completed — see transcript for details.",
-      };
+      // Independent verification: Claude audits the transcript. The
+      // provider's call_successful flag is only a last-resort fallback —
+      // it has reported "success" on plainly failed calls.
+      try {
+        reservation.outcome = await analyzeOutcome(reservation, call?.turns ?? []);
+      } catch (err) {
+        console.error("Outcome analysis failed, falling back to provider flag:", err);
+        reservation.outcome = {
+          success: data.analysis?.call_successful === "success",
+          summary:
+            data.analysis?.transcript_summary ??
+            "Call completed — see transcript for details.",
+        };
+      }
       await setJSON(`res:${reservationId}`, reservation);
     }
     // Email the requester the outcome + transcript, auto-translated to
