@@ -365,7 +365,7 @@ export default function Dashboard() {
                   <span className={`badge ${r.status}`}>{r.status.replace("_", " ")}</span>
                 </div>
                 <div className="meta">
-                  {r.partySize}名 · {r.date} {r.time} · {r.phoneNumber}
+                  {r.partySize} pax · {r.date} {r.time} · {r.phoneNumber}
                 </div>
                 {r.outcome && (
                   <div className="meta">

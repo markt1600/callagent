@@ -55,6 +55,27 @@ export default function AdminPage() {
     setReservations([]);
   }
 
+  async function reverify(id: string) {
+    if (!pin) return;
+    setError(null);
+    setBusyId(id);
+    try {
+      const res = await fetch(`/api/reservations/${id}/reanalyze`, {
+        method: "POST",
+        headers: { "x-admin-pin": pin },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data as { error?: string }).error || `Re-verify failed (${res.status})`);
+        if (res.status === 401) lock();
+        return;
+      }
+      await refresh();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function remove(id: string) {
     if (!pin) return;
     if (!window.confirm("Delete this reservation and its call history?")) return;
@@ -126,15 +147,26 @@ export default function AdminPage() {
                     {r.callerName ? ` · ${r.callerName}` : ""}
                   </div>
                 </div>
-                <button
-                  className="delete-btn"
-                  title="Delete reservation"
-                  disabled={busyId === r.id}
-                  onClick={() => remove(r.id)}
-                  style={{ fontSize: "1.2rem", color: "var(--err)", flexShrink: 0 }}
-                >
-                  ✕
-                </button>
+                <span className="row" style={{ flexShrink: 0, gap: "0.2rem" }}>
+                  <button
+                    className="delete-btn"
+                    title="Re-verify outcome from transcript"
+                    disabled={busyId === r.id}
+                    onClick={() => reverify(r.id)}
+                    style={{ fontSize: "1.05rem" }}
+                  >
+                    {busyId === r.id ? "…" : "↻"}
+                  </button>
+                  <button
+                    className="delete-btn"
+                    title="Delete reservation"
+                    disabled={busyId === r.id}
+                    onClick={() => remove(r.id)}
+                    style={{ fontSize: "1.2rem", color: "var(--err)" }}
+                  >
+                    ✕
+                  </button>
+                </span>
               </div>
             </div>
           ))}
