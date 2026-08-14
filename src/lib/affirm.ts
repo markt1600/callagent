@@ -14,6 +14,7 @@ import { config, requireEnv } from "./config";
 import { chargeForCall } from "./credits";
 import { tzOffsetHours } from "./callWindow";
 import { LANGUAGE_NAMES, outboundCallWithLanguage } from "./buddy";
+import { formatInDestination } from "./phone";
 import { getOrSynthesize } from "./phraseLibrary";
 import { twilioClient } from "./twilioClient";
 import { setJSON } from "./store";
@@ -307,6 +308,41 @@ export async function scheduleNextOccurrence(a: AffirmationCall): Promise<boolea
   return true;
 }
 
+/** Missed-call heads-up SMS, per language ({req}/{time}/{num} substituted). */
+const SMS_TEMPLATES: Record<BuddyLanguage, string> = {
+  en: "{req} has a message for you — we just tried to call. We'll try again at {time}. Please look out for a call from {num}, or add this number to your contacts.",
+  ja: "{req}さんからあなたへのメッセージがあり、先ほどお電話しました。{time}に再度おかけします。{num}からの着信にご注意いただくか、この番号を連絡先に登録してください。",
+  zh: "{req}有一条留言想转达给你，我们刚刚致电未接通。我们将于{time}再次来电，请留意来自{num}的电话，或将该号码存入通讯录。",
+  th: "{req}มีข้อความถึงคุณ เราเพิ่งโทรหาคุณ เราจะโทรอีกครั้งเวลา {time} กรุณาสังเกตสายจาก {num} หรือบันทึกเบอร์นี้ไว้ในรายชื่อผู้ติดต่อ",
+  vi: "{req} có một lời nhắn cho bạn — chúng tôi vừa gọi cho bạn. Chúng tôi sẽ gọi lại lúc {time}. Vui lòng chú ý cuộc gọi từ {num} hoặc lưu số này vào danh bạ.",
+  de: "{req} hat eine Nachricht für dich — wir haben gerade versucht anzurufen. Wir versuchen es um {time} erneut. Achte bitte auf einen Anruf von {num} oder speichere die Nummer in deinen Kontakten.",
+  ko: "{req}님이 전하실 메시지가 있어 방금 전화드렸습니다. {time}에 다시 전화드리겠습니다. {num}에서 오는 전화를 확인해 주시거나 이 번호를 연락처에 저장해 주세요.",
+  fr: "{req} a un message pour toi — nous venons d'essayer de t'appeler. Nous réessaierons à {time}. Guette un appel du {num}, ou enregistre ce numéro dans tes contacts.",
+};
+
+/**
+ * One-time heads-up SMS after the FIRST missed attempt — the callee may be
+ * silencing unknown numbers (iOS call screening etc.), so tell them who is
+ * trying to reach them, when the retry lands, and which number to expect.
+ * Non-fatal: SMS problems never disturb the retry schedule.
+ */
+async function sendMissedCallSms(a: AffirmationCall): Promise<void> {
+  if (a.smsSentAt || a.status !== "scheduled") return;
+  const from = config.twilio.fromNumber;
+  if (!from) return;
+  try {
+    const body = (SMS_TEMPLATES[a.language ?? "en"] ?? SMS_TEMPLATES.en)
+      .replaceAll("{req}", a.requesterName)
+      .replaceAll("{time}", formatInDestination(a.callAt, a.phoneNumber))
+      .replaceAll("{num}", from);
+    await twilioClient().messages.create({ to: a.phoneNumber, from, body });
+    a.smsSentAt = new Date().toISOString();
+    await setJSON(`affirm:${a.id}`, a);
+  } catch (err) {
+    console.error(`Missed-call SMS failed for ${a.id} (continuing):`, err);
+  }
+}
+
 /** Apply the retry policy after a no-answer. */
 export async function handleAffirmationNoAnswer(a: AffirmationCall): Promise<void> {
   let exhausted = false;
@@ -352,4 +388,5 @@ export async function handleAffirmationNoAnswer(a: AffirmationCall): Promise<voi
     a.error = "No answer after retries on two days";
   }
   await setJSON(`affirm:${a.id}`, a);
+  await sendMissedCallSms(a);
 }

@@ -556,6 +556,12 @@ export default function AffirmPage() {
                 “{a.message.length > 140 ? `${a.message.slice(0, 140)}…` : a.message}”
               </div>
             )}
+            {a.smsSentAt && (
+              <div className="meta" style={{ marginTop: "0.3rem" }}>
+                📱 Missed-call SMS sent — they were told to look out for the agent&apos;s
+                number.
+              </div>
+            )}
             {a.summary && (
               <div className="meta" style={{ marginTop: "0.3rem" }}>
                 {a.summary}
