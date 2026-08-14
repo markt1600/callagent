@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { getJSON, setJSON, listJSON } from "@/lib/store";
+import { requireAdminRequest } from "@/lib/auth";
 import { analyzeOutcome } from "@/lib/analyzeCall";
 import type { CallSession, ReservationRequest } from "@/lib/types";
 
@@ -14,16 +15,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const adminPin = process.env.ADMIN_PIN;
-  if (!adminPin) {
-    return NextResponse.json(
-      { error: "Admin is disabled — set the ADMIN_PIN environment variable" },
-      { status: 501 },
-    );
-  }
-  if (request.headers.get("x-admin-pin") !== adminPin) {
-    return NextResponse.json({ error: "Wrong PIN" }, { status: 401 });
-  }
+  const denied = await requireAdminRequest(request);
+  if (denied) return NextResponse.json({ error: denied }, { status: 401 });
 
   const { id } = await params;
   const reservation = await getJSON<ReservationRequest>(`res:${id}`);

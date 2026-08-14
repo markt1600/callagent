@@ -117,6 +117,12 @@ src/
 - Buying a local caller-ID number (JP or SG) requires identity documentation under local telecom rules; calls also work from a US/other number, but a local number materially improves answer rates.
 - Recording calls has consent requirements — this app stores transcripts, not audio recordings, of the counterparty.
 
+### Accounts & guest mode
+
+- **Google sign-in** is optional. Create an OAuth **Web application** client in Google Cloud Console (APIs & Services → Credentials), add your deployment origin and `http://localhost:3000` under **Authorized JavaScript origins** (no redirect URI needed), then set `NEXT_PUBLIC_GOOGLE_CLIENT_ID` and `AUTH_SECRET` (`openssl rand -hex 32`). Without them, the app runs in guest mode only.
+- Signed-in users get: their own reservation list, remembered restaurants with per-restaurant preferences ("Book again" prefills everything except date and time), and pre-populated booking name / contact number (editable under **Account**).
+- Guests and first-time sign-ins are prompted once to save the Twilio number as an **Agent M** contact — `/api/contact-card` serves a vCard that opens the native add-contact flow on iPhone and Android.
+
 ### Language notes
 
 - The per-reservation **Call language** selector drives everything: the phrase pack is scripted in that language, TTS uses the matching pronunciation hint, Twilio speech recognition picks the accent-matched locale from the destination country code, and Agent mode passes a language override per call.

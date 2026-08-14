@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getJSON, listJSON, store } from "@/lib/store";
+import { requireAdminRequest } from "@/lib/auth";
 import type { CallSession, ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -14,21 +15,13 @@ export async function GET(
   return NextResponse.json({ reservation });
 }
 
-/** Admin-only: delete a reservation and its call history. Requires ADMIN_PIN. */
+/** Admin-only: delete a reservation and its call history. PIN + owner account. */
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const adminPin = process.env.ADMIN_PIN;
-  if (!adminPin) {
-    return NextResponse.json(
-      { error: "Admin is disabled — set the ADMIN_PIN environment variable" },
-      { status: 501 },
-    );
-  }
-  if (request.headers.get("x-admin-pin") !== adminPin) {
-    return NextResponse.json({ error: "Wrong PIN" }, { status: 401 });
-  }
+  const denied = await requireAdminRequest(request);
+  if (denied) return NextResponse.json({ error: denied }, { status: 401 });
 
   const { id } = await params;
   const reservation = await getJSON<ReservationRequest>(`res:${id}`);

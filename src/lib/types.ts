@@ -40,9 +40,48 @@ export interface ReservationPreferences {
   askCorkage?: boolean;
 }
 
+/** A signed-in user (Google account). Guests have no profile. */
+export interface UserProfile {
+  /** Google account subject (stable unique id) */
+  id: string;
+  email: string;
+  /** Display name from Google */
+  name?: string;
+  picture?: string;
+  /** Pre-populated booking name for new reservations (editable in Account) */
+  bookingName?: string;
+  /** Pre-populated guest contact number for new reservations */
+  contactPhone?: string;
+  /** Set once the save-Agent-M-contact prompt has been shown */
+  contactCardPromptedAt?: string;
+  /** Call-credit balance. Absent = untouched starting grant. */
+  credits?: number;
+  createdAt: string;
+}
+
+/**
+ * A restaurant a signed-in user has booked before, with the last-used
+ * details so a repeat reservation only needs a date and time.
+ */
+export interface SavedRestaurant {
+  /** Digits of the phone number (stable id per restaurant) */
+  id: string;
+  name: string;
+  phoneNumber: string;
+  language: SupportedLanguage;
+  partySize?: number;
+  specialRequests?: string;
+  preferences?: ReservationPreferences;
+  notifyEmail?: string;
+  timesBooked: number;
+  lastBookedAt: string;
+}
+
 export interface ReservationRequest {
   id: string;
   createdAt: string;
+  /** Owning user (Google sub) — absent for guest-mode reservations */
+  userId?: string;
   /** Phone number to dial, E.164 (e.g. +81312345678) */
   phoneNumber: string;
   restaurantName: string;

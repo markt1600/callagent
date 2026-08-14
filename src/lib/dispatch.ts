@@ -3,6 +3,7 @@
 
 import { randomUUID } from "crypto";
 import { setJSON } from "./store";
+import { chargeForCall } from "./credits";
 import { placeAgentCall } from "./elevenlabsAgent";
 import { placeIvrCall } from "./twilioClient";
 import type { CallSession, ReservationRequest } from "./types";
@@ -39,6 +40,12 @@ export async function dispatchCall(
   reservation.attempts = (reservation.attempts ?? 0) + 1;
 
   try {
+    // Account credits: every call attempt is charged before dialing.
+    // Guest-mode reservations (no userId) are not charged.
+    if (reservation.userId) {
+      const charge = await chargeForCall(reservation.userId, reservation.phoneNumber);
+      if (!charge.ok) throw new Error(charge.error);
+    }
     if (mode === "ivr") {
       if (purpose === "cancel") {
         throw new Error("Cancellation calls are Agent mode only");

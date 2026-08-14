@@ -2,7 +2,44 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { shiftHHMM } from "@/lib/timeUtils";
-import type { CallSession, ReservationRequest } from "@/lib/types";
+import GoogleSignIn from "./components/GoogleSignIn";
+import AgentContactPrompt from "./components/AgentContactPrompt";
+import type {
+  CallSession,
+  ReservationPreferences,
+  ReservationRequest,
+  SavedRestaurant,
+  UserProfile,
+} from "@/lib/types";
+
+interface MeResponse {
+  user: UserProfile | null;
+  authConfigured: boolean;
+  googleClientId: string | null;
+  agentNumber: string | null;
+  isAdmin: boolean;
+  creditCosts: Record<string, number>;
+}
+
+/** Map stored preferences back onto the form's field shapes. */
+function preferencesToForm(p?: ReservationPreferences) {
+  return {
+    seating: p?.seating ?? "",
+    minimumSpend: p?.minimumSpendOk === undefined ? "" : p.minimumSpendOk ? "yes" : "no",
+    smoking: p?.smoking ?? "",
+    timeLimit: p?.timeLimitOk === undefined ? "" : p.timeLimitOk ? "yes" : "no",
+    privateRoom: Boolean(p?.privateRoom),
+    quietTable: Boolean(p?.quietTable),
+    kidsCount: p?.kidsCount ?? 0,
+    kidsSeating: Boolean(p?.kidsSeating),
+    occasion: p?.occasion ?? "",
+    occasionName: p?.occasionName ?? "",
+    birthdayCake: Boolean(p?.birthdayCake),
+    allergies: p?.allergies ?? "",
+    accessibility: Boolean(p?.accessibility),
+    askCorkage: Boolean(p?.askCorkage),
+  };
+}
 
 const EMPTY_FORM = {
   restaurantName: "",
@@ -45,6 +82,11 @@ export default function Dashboard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [operatorText, setOperatorText] = useState("");
+  const [me, setMe] = useState<MeResponse | null>(null);
+  const [restaurants, setRestaurants] = useState<SavedRestaurant[]>([]);
+  const [showContactPrompt, setShowContactPrompt] = useState(false);
+
+  const user = me?.user ?? null;
 
   const selected = reservations.find((r) => r.id === selectedId) ?? null;
   const activeCall =
@@ -86,6 +128,94 @@ export default function Dashboard() {
       /* transient */
     }
   }, [selectedId, selectedCallId]);
+
+  const loadRestaurants = useCallback(async () => {
+    try {
+      const data = await fetch("/api/me/restaurants").then((r) => r.json());
+      setRestaurants(data.restaurants ?? []);
+    } catch {
+      /* transient */
+    }
+  }, []);
+
+  // Session bootstrap: who's signed in, prefill their details, and decide
+  // whether to show the one-time "save Agent M as a contact" prompt.
+  useEffect(() => {
+    (async () => {
+      try {
+        const data: MeResponse = await fetch("/api/me").then((r) => r.json());
+        setMe(data);
+        if (data.user) {
+          const u = data.user;
+          setForm((f) => ({
+            ...f,
+            callerName: f.callerName || u.bookingName || "",
+            contactPhone: f.contactPhone || u.contactPhone || "",
+            notifyEmail: f.notifyEmail || u.email || "",
+          }));
+          loadRestaurants();
+          if (data.agentNumber && !u.contactCardPromptedAt) setShowContactPrompt(true);
+        } else if (data.agentNumber && !localStorage.getItem("agentmContactPrompted")) {
+          // Guest mode: prompt once per browser.
+          setShowContactPrompt(true);
+        }
+      } catch {
+        /* transient */
+      }
+    })();
+  }, [loadRestaurants]);
+
+  function onSignedIn(u: UserProfile) {
+    setMe((m) => (m ? { ...m, user: u } : m));
+    setForm((f) => ({
+      ...f,
+      callerName: f.callerName || u.bookingName || "",
+      contactPhone: f.contactPhone || u.contactPhone || "",
+      notifyEmail: f.notifyEmail || u.email || "",
+    }));
+    setSelectedId(null);
+    refresh();
+    loadRestaurants();
+    if (me?.agentNumber && !u.contactCardPromptedAt) setShowContactPrompt(true);
+  }
+
+  function dismissContactPrompt() {
+    setShowContactPrompt(false);
+    localStorage.setItem("agentmContactPrompted", "1");
+    if (user) {
+      fetch("/api/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactCardPrompted: true }),
+      }).catch(() => {});
+    }
+  }
+
+  async function forgetRestaurant(id: string) {
+    if (!window.confirm("Forget this restaurant and its saved preferences?")) return;
+    await fetch(`/api/me/restaurants?id=${id}`, { method: "DELETE" });
+    setRestaurants((list) => list.filter((r) => r.id !== id));
+  }
+
+  /** Prefill the form from a saved restaurant — only date and time remain. */
+  function bookAgain(r: SavedRestaurant) {
+    setForm({
+      ...EMPTY_FORM,
+      restaurantName: r.name,
+      phoneNumber: r.phoneNumber,
+      partySize: r.partySize ?? 2,
+      language: r.language,
+      callerName: user?.bookingName ?? "",
+      contactPhone: user?.contactPhone ?? "",
+      notifyEmail: r.notifyEmail ?? user?.email ?? "",
+      specialRequests: r.specialRequests ?? "",
+      ...preferencesToForm(r.preferences),
+      date: "",
+    });
+    setSelectedId(null);
+    setSelectedCallId(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   useEffect(() => {
     refresh();
@@ -159,6 +289,7 @@ export default function Dashboard() {
       if (reservation.error) setError(reservation.error);
       await refresh();
       await refreshCalls();
+      if (user) loadRestaurants();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -257,6 +388,34 @@ export default function Dashboard() {
         AI reservation agent for restaurants in Japan and Singapore — enter the details,
         and it calls the restaurant and books your table.
       </p>
+
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "center", margin: "0.6rem 0 1.2rem" }}>
+        <nav className="tabs" style={{ margin: 0 }}>
+          <a className="active">Reservations</a>
+          <a href="/account">Account</a>
+        </nav>
+        {me &&
+          (user ? (
+            <a href="/account" className="userchip" title="Account">
+              {user.bookingName ?? user.name ?? user.email}
+            </a>
+          ) : me.authConfigured && me.googleClientId ? (
+            <span className="row" style={{ alignItems: "center", gap: "0.6rem" }}>
+              <GoogleSignIn
+                clientId={me.googleClientId}
+                onSignedIn={onSignedIn}
+                onError={(msg) => setError(msg)}
+              />
+              <span className="sub" style={{ margin: 0 }}>
+                or continue as guest
+              </span>
+            </span>
+          ) : (
+            <span className="sub" style={{ margin: 0 }}>
+              Guest mode
+            </span>
+          ))}
+      </div>
 
       <div className="grid">
         <div>
@@ -550,6 +709,46 @@ export default function Dashboard() {
             {error && <p className="error">{error}</p>}
           </div>
 
+          {user && restaurants.length > 0 && (
+            <div className="panel">
+              <h2>Your restaurants</h2>
+              <p className="sub" style={{ marginTop: 0 }}>
+                Everything is remembered — a repeat booking only needs a date and time. Edit
+                details under <a className="admin-link" href="/account">Account</a>.
+              </p>
+              {restaurants.map((r) => (
+                <div key={r.id} className="res-item" style={{ cursor: "default" }}>
+                  <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
+                    <div>
+                      <strong>{r.name}</strong>
+                      <div className="meta">
+                        {r.phoneNumber} · booked {r.timesBooked}×
+                        {r.partySize ? ` · usually ${r.partySize} pax` : ""}
+                      </div>
+                    </div>
+                    <span className="row" style={{ flexShrink: 0, gap: "0.2rem", alignItems: "center" }}>
+                      <button
+                        className="secondary"
+                        style={{ marginTop: 0, minHeight: 0, padding: "0.45rem 0.9rem", fontSize: "0.8rem" }}
+                        onClick={() => bookAgain(r)}
+                      >
+                        Book again
+                      </button>
+                      <button
+                        className="delete-btn"
+                        title="Forget this restaurant"
+                        onClick={() => forgetRestaurant(r.id)}
+                        style={{ fontSize: "1.2rem", color: "var(--err)" }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="panel">
             <h2>Reservations</h2>
             {reservations.length === 0 && <p className="sub">None yet.</p>}
@@ -812,11 +1011,17 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <p className="sub" style={{ textAlign: "center", marginTop: "2.5rem", marginBottom: 0 }}>
-        <a className="admin-link" href="/admin">
-          Admin
-        </a>
-      </p>
+      {me?.isAdmin && (
+        <p className="sub" style={{ textAlign: "center", marginTop: "2.5rem", marginBottom: 0 }}>
+          <a className="admin-link" href="/admin">
+            Admin
+          </a>
+        </p>
+      )}
+
+      {showContactPrompt && me?.agentNumber && (
+        <AgentContactPrompt agentNumber={me.agentNumber} onDismiss={dismissContactPrompt} />
+      )}
     </main>
   );
 }
