@@ -3,7 +3,13 @@ import { randomUUID } from "crypto";
 import { getSessionUser } from "@/lib/auth";
 import { dispatchBuddyCall, pickCodewords, pickEmergencyCodeword } from "@/lib/buddy";
 import { listJSON, setJSON } from "@/lib/store";
-import type { BuddyCall } from "@/lib/types";
+import type { BuddyCall, BuddyLanguage } from "@/lib/types";
+
+const BUDDY_LANGUAGES: BuddyLanguage[] = ["en", "ja", "zh", "th", "vi"];
+
+function parseLanguage(raw: unknown): BuddyLanguage | undefined {
+  return BUDDY_LANGUAGES.includes(raw as BuddyLanguage) ? (raw as BuddyLanguage) : undefined;
+}
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -45,6 +51,8 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await getSessionUser();
+    // English by default; Chinese, Japanese, Thai, or Vietnamese on request.
+    const language = parseLanguage(body.language) ?? "en";
 
     // Optional emergency contact: taken from the request, else from the
     // signed-in user's stored contact. Needs a name plus a phone or email.
@@ -66,11 +74,12 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
+      const ecLanguage = parseLanguage(rawEc.language);
       const codeword =
         typeof rawEc.codeword === "string" && rawEc.codeword.trim()
           ? rawEc.codeword.trim().toLowerCase().slice(0, 30)
-          : pickEmergencyCodeword([]);
-      emergencyContact = { name, phone, email, codeword };
+          : pickEmergencyCodeword([], ecLanguage ?? language);
+      emergencyContact = { name, phone, email, codeword, language: ecLanguage };
     } else if (user?.emergencyContact) {
       emergencyContact = user.emergencyContact;
     }
@@ -81,21 +90,23 @@ export async function POST(request: NextRequest) {
       userId: user?.id,
       phoneNumber: body.phoneNumber,
       name: String(body.name).trim().slice(0, 60),
+      language,
       callAt: at.toISOString(),
       scenario:
         typeof body.scenario === "string" && body.scenario.trim()
           ? body.scenario.trim().slice(0, 500)
           : undefined,
-      ...pickCodewords(emergencyContact ? [emergencyContact.codeword] : []),
+      ...pickCodewords(language, emergencyContact ? [emergencyContact.codeword] : []),
       emergencyContact,
       status: "scheduled",
       attempts: 0,
     };
     await setJSON(`buddy:${buddy.id}`, buddy);
 
-    // Remember the emergency contact on the account for next time.
-    if (user && emergencyContact && rawEc) {
-      user.emergencyContact = emergencyContact;
+    // Remember the language (and any emergency contact) on the account.
+    if (user) {
+      user.buddyLanguage = language;
+      if (emergencyContact && rawEc) user.emergencyContact = emergencyContact;
       await setJSON(`user:${user.id}`, user);
     }
 

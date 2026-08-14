@@ -3,6 +3,13 @@
 export type SupportedLanguage = "ja" | "en" | "zh";
 
 /**
+ * Buddy Call languages: broader than the reservation stack (which needs
+ * phrase packs, speech locales, and translation per language) because buddy
+ * calls only need the ElevenLabs agent, which speaks all of these.
+ */
+export type BuddyLanguage = SupportedLanguage | "th" | "vi";
+
+/**
  * Additional reservation options.
  * REACTIVE preferences are only voiced if the restaurant raises the topic.
  * PROACTIVE ones are raised by the agent itself during the call.
@@ -56,12 +63,16 @@ export interface UserProfile {
   contactCardPromptedAt?: string;
   /** Call-credit balance. Absent = untouched starting grant. */
   credits?: number;
+  /** Preferred Buddy Call language — prefills the buddy form. */
+  buddyLanguage?: BuddyLanguage;
   /** Stored emergency contact — prefills Buddy Call's emergency section. */
   emergencyContact?: {
     name: string;
     phone?: string;
     email?: string;
     codeword: string;
+    /** Language for the relay call/email */
+    language?: BuddyLanguage;
   };
   createdAt: string;
 }
@@ -269,6 +280,8 @@ export interface BuddyCall {
   phoneNumber: string;
   /** What the buddy should call the user */
   name: string;
+  /** Language the buddy call is conducted in */
+  language: BuddyLanguage;
   /** When to ring (ISO) */
   callAt: string;
   /** Optional setting so the call sounds right (e.g. "first date at a wine bar") */
@@ -287,6 +300,8 @@ export interface BuddyCall {
     phone?: string;
     email?: string;
     codeword: string;
+    /** Language for the relay call/email (defaults to the buddy call's) */
+    language?: BuddyLanguage;
   };
   /** Set when the emergency codeword was said and confirmed on a call */
   emergencyTriggeredAt?: string;

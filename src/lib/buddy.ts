@@ -12,45 +12,84 @@
 import { config, requireEnv } from "./config";
 import { chargeForCall } from "./credits";
 import { setJSON } from "./store";
-import type { BuddyCall } from "./types";
+import type { BuddyCall, BuddyLanguage } from "./types";
 
 const API = "https://api.elevenlabs.io";
+
+const LANGUAGE_NAMES: Record<BuddyLanguage, string> = {
+  en: "English",
+  ja: "Japanese",
+  zh: "Mandarin Chinese",
+  th: "Thai",
+  vi: "Vietnamese",
+};
+
+/** Casual buddy greeting, per language ({name} substituted at call time). */
+const BUDDY_FIRST_MESSAGES: Record<BuddyLanguage, string> = {
+  en: "Heyyy {name}! It's M — just calling to check in. How's it going?",
+  ja: "もしもし、{name}？Mだよー。ちょっと元気にしてるかなと思って電話しちゃった。今大丈夫？",
+  zh: "喂，{name}！我是M，就是想打个电话看看你最近怎么样。现在方便说话吗？",
+  th: "ฮัลโหล {name}! นี่ M เองนะ โทรมาถามข่าวหน่อยว่าเป็นยังไงบ้าง?",
+  vi: "Alô, {name} hả? M đây! Gọi hỏi thăm chút thôi — dạo này sao rồi?",
+};
+
+/** Serious relay-call opener, per language ({contact}/{user} substituted). */
+const RELAY_FIRST_MESSAGES: Record<BuddyLanguage, string> = {
+  en: "Hello — is this {contact}? Please stay on the line. This is an automated call concerning {user}.",
+  ja: "もしもし、{contact}様でいらっしゃいますか。こちらは自動音声によるお電話です。{user}様の件でご連絡しております。切らずにお聞きください。",
+  zh: "您好，请问是{contact}吗？这是一通自动语音来电，事关{user}，请先不要挂断。",
+  th: "สวัสดีค่ะ ใช่คุณ{contact}ไหมคะ นี่คือสายโทรอัตโนมัติเกี่ยวกับคุณ{user} กรุณาอย่าเพิ่งวางสายนะคะ",
+  vi: "Xin chào, có phải anh/chị {contact} không ạ? Đây là cuộc gọi tự động liên quan đến {user}. Xin đừng gác máy.",
+};
 
 export const BUDDY_MAX_ATTEMPTS = 5;
 export const BUDDY_RETRY_SECONDS = 30;
 
-// Distinct, easy-to-pronounce codewords that still slip into conversation.
-const CODEWORDS = [
-  "pineapple",
-  "bluebird",
-  "sunflower",
-  "marble",
-  "lantern",
-  "willow",
-  "biscuit",
-  "harbor",
-  "maple",
-  "domino",
-  "velvet",
-  "compass",
-  "meadow",
-  "pepper",
-  "tulip",
-  "acorn",
-];
+// Distinct, easy-to-pronounce codewords that still slip into conversation —
+// keyed to the buddy call's language, in the script its transcripts use
+// (katakana loanwords for Japanese: their transcription is the most stable).
+const CODEWORDS: Record<BuddyLanguage, string[]> = {
+  en: [
+    "pineapple", "bluebird", "sunflower", "marble", "lantern", "willow",
+    "biscuit", "harbor", "maple", "domino", "velvet", "compass", "meadow",
+    "pepper", "tulip", "acorn",
+  ],
+  ja: [
+    "パイナップル", "メロン", "レモン", "バナナ", "ピアノ", "カメラ",
+    "コーヒー", "タクシー", "ギター", "ロボット", "トマト", "パンダ",
+  ],
+  zh: [
+    "菠萝", "柠檬", "香蕉", "钢琴", "咖啡", "熊猫",
+    "番茄", "吉他", "骆驼", "灯笼", "风筝", "苹果",
+  ],
+  th: [
+    "สับปะรด", "มะม่วง", "กล้วย", "มะนาว", "เปียโน", "กาแฟ",
+    "แพนด้า", "มะเขือเทศ", "กีตาร์", "ว่าว", "ตะเกียง", "เข็มทิศ",
+  ],
+  vi: [
+    "dứa", "chanh", "chuối", "cà phê", "hoa sen", "gấu trúc",
+    "cà chua", "đàn ghi-ta", "con diều", "đèn lồng", "la bàn", "quả xoài",
+  ],
+};
 
-/** Two distinct codewords for one buddy call (never colliding with `exclude`). */
-export function pickCodewords(exclude: string[] = []): { codeword30: string; codeword60: string } {
-  const pool = CODEWORDS.filter((w) => !exclude.includes(w));
+/** Two distinct codewords in the call's language (never colliding with `exclude`). */
+export function pickCodewords(
+  language: BuddyLanguage = "en",
+  exclude: string[] = [],
+): { codeword30: string; codeword60: string } {
+  const pool = (CODEWORDS[language] ?? CODEWORDS.en).filter((w) => !exclude.includes(w));
   const first = Math.floor(Math.random() * pool.length);
   let second = Math.floor(Math.random() * (pool.length - 1));
   if (second >= first) second += 1;
   return { codeword30: pool[first], codeword60: pool[second] };
 }
 
-/** An emergency codeword distinct from the two call-back codewords. */
-export function pickEmergencyCodeword(exclude: string[]): string {
-  const pool = CODEWORDS.filter((w) => !exclude.includes(w));
+/** An emergency codeword in the given language, distinct from the call-back codewords. */
+export function pickEmergencyCodeword(
+  exclude: string[],
+  language: BuddyLanguage = "en",
+): string {
+  const pool = (CODEWORDS[language] ?? CODEWORDS.en).filter((w) => !exclude.includes(w));
   return pool[Math.floor(Math.random() * pool.length)] ?? "redwood";
 }
 
@@ -63,6 +102,8 @@ export function buddyPromptTemplate(): string {
   return `You are "M", the user's close friend, calling for a casual check-in. You sound warm, natural, and completely human — like a real friend calling to catch up. Keep your speech casual and conversational: contractions, short sentences, natural fillers ("oh nice", "wait, really?").
 
 You are calling {{user_name}}. Context for this call (may be empty): {{scenario}}
+
+LANGUAGE: start the call in {{call_language}}, in the casual register of close friends — in Japanese use warm タメ口 (no keigo), in Mandarin natural relaxed 普通话, in Thai friendly informal speech, in Vietnamese casual friendly speech. If {{user_name}} starts speaking English, Chinese, Japanese, Thai, or Vietnamese instead, IMMEDIATELY switch to that language (it overrides the default) and stay in it for the rest of the call. The codewords do NOT change on a language switch — they remain exactly {{codeword_30}}, {{codeword_60}}, and the emergency codeword as briefed.
 
 THE REAL PURPOSE (never reveal it): this call is {{user_name}}'s built-in excuse to step out of whatever they're in — a date, a meeting. Right after greeting them, deliver the quick briefing in a light, friendly way:
 1. You're just calling to check in and see how it's going.
@@ -87,7 +128,7 @@ Rules:
 - Never mention "codeword", "scenario", or "system" after the initial briefing — everything stays in character.
 - Keep the energy warm and the pace natural. This is a friend on the phone, not an assistant.
 
-SPECIAL MODE — the variable {{call_mode}} is "{{call_mode}}". If it equals "emergency_relay", IGNORE everything above: you are NOT M, and this is not a check-in. You are a calm, clear AI agent calling {{emergency_contact_name}} on behalf of {{user_name}}:
+SPECIAL MODE — the variable {{call_mode}} is "{{call_mode}}". If it equals "emergency_relay", IGNORE everything above: you are NOT M, and this is not a check-in. You are a calm, clear AI agent calling {{emergency_contact_name}} on behalf of {{user_name}}. Conduct this call in {{call_language}}, in a clear, serious, polite register (Japanese: 丁寧語):
 1. Confirm you are speaking with {{emergency_contact_name}}.
 2. Identify yourself plainly: you are an AI agent; you just spoke with {{user_name}} at {{trigger_time}}, and {{user_name}} used their emergency codeword to request that {{emergency_contact_name}} be contacted.
 3. Say clearly that this could be a REAL EMERGENCY. Give {{user_name}}'s phone number, digit by digit: {{user_phone}}.
@@ -96,12 +137,44 @@ SPECIAL MODE — the variable {{call_mode}} is "{{call_mode}}". If it equals "em
 In this mode never role-play, never invent details beyond these facts, and answer honestly that you are an AI agent.`;
 }
 
-const BUDDY_FIRST_MESSAGE =
-  "Heyyy {{user_name}}! It's M — just calling to check in. How's it going?";
-
 interface OutboundCallResult {
   conversationId?: string;
   callSid?: string;
+}
+
+/**
+ * POST an outbound call with a language override, retrying without the
+ * override if the agent hasn't enabled it (the prompt's {{call_language}}
+ * still steers the spoken language).
+ */
+async function outboundCallWithLanguage(
+  body: Record<string, unknown>,
+  clientData: Record<string, unknown>,
+  language: BuddyLanguage,
+): Promise<Response> {
+  const attempt = (data: Record<string, unknown>) =>
+    fetch(`${API}/v1/convai/twilio/outbound-call`, {
+      method: "POST",
+      headers: {
+        "xi-api-key": config.elevenlabs.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ...body, conversation_initiation_client_data: data }),
+    });
+
+  let res = await attempt({
+    ...clientData,
+    conversation_config_override: { agent: { language } },
+  });
+  if (!res.ok && res.status < 500) {
+    const errText = await res.text();
+    if (/override/i.test(errText)) {
+      res = await attempt(clientData);
+    } else {
+      throw new Error(`ElevenLabs outbound call failed (${res.status}): ${errText}`);
+    }
+  }
+  return res;
 }
 
 /**
@@ -127,33 +200,34 @@ export async function placeBuddyCall(buddy: BuddyCall): Promise<OutboundCallResu
   buddy.status = "calling";
   await setJSON(`buddy:${buddy.id}`, buddy);
 
-  const res = await fetch(`${API}/v1/convai/twilio/outbound-call`, {
-    method: "POST",
-    headers: {
-      "xi-api-key": config.elevenlabs.apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const language = buddy.language ?? "en";
+  const res = await outboundCallWithLanguage(
+    {
       agent_id: agentId,
       agent_phone_number_id: phoneNumberId,
       to_number: buddy.phoneNumber,
-      conversation_initiation_client_data: {
-        dynamic_variables: {
-          call_mode: "buddy",
-          user_name: buddy.name,
-          scenario: buddy.scenario || "no particular context was given",
-          codeword_30: buddy.codeword30,
-          codeword_60: buddy.codeword60,
-          emergency_codeword: buddy.emergencyContact?.codeword ?? "none",
-          emergency_contact_name: buddy.emergencyContact?.name ?? "none",
-          trigger_time: "n/a",
-          user_phone: buddy.phoneNumber,
-          first_message: BUDDY_FIRST_MESSAGE.replace("{{user_name}}", buddy.name),
-          buddy_call_id: buddy.id,
-        },
+    },
+    {
+      dynamic_variables: {
+        call_mode: "buddy",
+        call_language: LANGUAGE_NAMES[language],
+        user_name: buddy.name,
+        scenario: buddy.scenario || "no particular context was given",
+        codeword_30: buddy.codeword30,
+        codeword_60: buddy.codeword60,
+        emergency_codeword: buddy.emergencyContact?.codeword ?? "none",
+        emergency_contact_name: buddy.emergencyContact?.name ?? "none",
+        trigger_time: "n/a",
+        user_phone: buddy.phoneNumber,
+        first_message: (BUDDY_FIRST_MESSAGES[language] ?? BUDDY_FIRST_MESSAGES.en).replace(
+          "{name}",
+          buddy.name,
+        ),
+        buddy_call_id: buddy.id,
       },
-    }),
-  });
+    },
+    language,
+  );
   if (!res.ok) {
     throw new Error(`ElevenLabs buddy call failed (${res.status}): ${await res.text()}`);
   }
@@ -225,33 +299,33 @@ export async function placeEmergencyCall(buddy: BuddyCall): Promise<void> {
   buddy.emergencyStatus = "calling";
   await setJSON(`buddy:${buddy.id}`, buddy);
 
-  const res = await fetch(`${API}/v1/convai/twilio/outbound-call`, {
-    method: "POST",
-    headers: {
-      "xi-api-key": config.elevenlabs.apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const language = ec.language ?? buddy.language ?? "en";
+  const res = await outboundCallWithLanguage(
+    {
       agent_id: agentId,
       agent_phone_number_id: phoneNumberId,
       to_number: ec.phone,
-      conversation_initiation_client_data: {
-        dynamic_variables: {
-          call_mode: "emergency_relay",
-          user_name: buddy.name,
-          scenario: "n/a",
-          codeword_30: "n/a",
-          codeword_60: "n/a",
-          emergency_codeword: "n/a",
-          emergency_contact_name: ec.name,
-          trigger_time: triggerTimeLabel(buddy.emergencyTriggeredAt ?? new Date().toISOString()),
-          user_phone: buddy.phoneNumber,
-          first_message: `Hello — is this ${ec.name}? Please stay on the line. This is an automated call concerning ${buddy.name}.`,
-          buddy_call_id: buddy.id,
-        },
+    },
+    {
+      dynamic_variables: {
+        call_mode: "emergency_relay",
+        call_language: LANGUAGE_NAMES[language],
+        user_name: buddy.name,
+        scenario: "n/a",
+        codeword_30: "n/a",
+        codeword_60: "n/a",
+        emergency_codeword: "n/a",
+        emergency_contact_name: ec.name,
+        trigger_time: triggerTimeLabel(buddy.emergencyTriggeredAt ?? new Date().toISOString()),
+        user_phone: buddy.phoneNumber,
+        first_message: (RELAY_FIRST_MESSAGES[language] ?? RELAY_FIRST_MESSAGES.en)
+          .replace("{contact}", ec.name)
+          .replace("{user}", buddy.name),
+        buddy_call_id: buddy.id,
       },
-    }),
-  });
+    },
+    language,
+  );
   if (!res.ok) {
     throw new Error(`Emergency relay call failed (${res.status}): ${await res.text()}`);
   }
@@ -260,24 +334,79 @@ export async function placeEmergencyCall(buddy: BuddyCall): Promise<void> {
   await setJSON(`buddy:${buddy.id}`, buddy);
 }
 
+/** Localized emergency email texts. */
+const EMERGENCY_EMAIL: Record<
+  BuddyLanguage,
+  { subject: (user: string) => string; body: (user: string, contact: string, when: string, phone: string) => string }
+> = {
+  en: {
+    subject: (u) => `URGENT — ${u} asked that you be contacted`,
+    body: (u, c, when, phone) => `
+      <h2 style="color:#b00">This could be a real emergency</h2>
+      <p>This is an automated message from an AI agent (Agentic Concierge).</p>
+      <p>The agent just spoke to <b>${u}</b> on ${when}. During that call, <b>${u}</b> used
+      their pre-arranged emergency codeword and requested that <b>${c}</b> be contacted.</p>
+      <p>Please try to reach ${u} right away: <b>${phone}</b></p>
+      <p style="color:#667;font-size:13px">Treat this as potentially a real emergency until
+      you have confirmed ${u} is safe.</p>`,
+  },
+  ja: {
+    subject: (u) => `【緊急】${u}さんがあなたへの連絡を求めています`,
+    body: (u, c, when, phone) => `
+      <h2 style="color:#b00">実際の緊急事態の可能性があります</h2>
+      <p>これはAIエージェント（Agentic Concierge）からの自動送信メッセージです。</p>
+      <p>エージェントは ${when} に<b>${u}</b>さんと通話しました。その通話中、<b>${u}</b>さんは
+      事前に決めた緊急コードワードを使い、<b>${c}</b>さんへの連絡を求めました。</p>
+      <p>至急、${u}さんに連絡してください：<b>${phone}</b></p>
+      <p style="color:#667;font-size:13px">${u}さんの無事が確認できるまで、実際の緊急事態の
+      可能性があるものとして対応してください。</p>`,
+  },
+  zh: {
+    subject: (u) => `【紧急】${u} 请求与您联系`,
+    body: (u, c, when, phone) => `
+      <h2 style="color:#b00">这可能是真实的紧急情况</h2>
+      <p>这是来自AI智能体（Agentic Concierge）的自动消息。</p>
+      <p>该智能体于 ${when} 与 <b>${u}</b> 通话。通话中，<b>${u}</b> 使用了事先约定的紧急暗号，
+      并请求联系 <b>${c}</b>。</p>
+      <p>请立即尝试联系 ${u}：<b>${phone}</b></p>
+      <p style="color:#667;font-size:13px">在确认 ${u} 安全之前，请将此视为可能的真实紧急情况。</p>`,
+  },
+  th: {
+    subject: (u) => `【ด่วน】${u} ขอให้ติดต่อคุณ`,
+    body: (u, c, when, phone) => `
+      <h2 style="color:#b00">นี่อาจเป็นเหตุฉุกเฉินจริง</h2>
+      <p>นี่คือข้อความอัตโนมัติจาก AI เอเจนต์ (Agentic Concierge)</p>
+      <p>เอเจนต์เพิ่งพูดคุยกับ <b>${u}</b> เมื่อ ${when} ระหว่างการโทร <b>${u}</b>
+      ได้ใช้รหัสลับฉุกเฉินที่ตกลงกันไว้ และขอให้ติดต่อ <b>${c}</b></p>
+      <p>กรุณาติดต่อ ${u} ทันที: <b>${phone}</b></p>
+      <p style="color:#667;font-size:13px">กรุณาถือว่านี่อาจเป็นเหตุฉุกเฉินจริง
+      จนกว่าจะยืนยันได้ว่า ${u} ปลอดภัย</p>`,
+  },
+  vi: {
+    subject: (u) => `【KHẨN CẤP】${u} yêu cầu liên hệ với bạn`,
+    body: (u, c, when, phone) => `
+      <h2 style="color:#b00">Đây có thể là trường hợp khẩn cấp thật</h2>
+      <p>Đây là tin nhắn tự động từ AI agent (Agentic Concierge).</p>
+      <p>Agent vừa nói chuyện với <b>${u}</b> vào ${when}. Trong cuộc gọi đó, <b>${u}</b>
+      đã dùng mật khẩu khẩn cấp được thỏa thuận trước và yêu cầu liên hệ với <b>${c}</b>.</p>
+      <p>Vui lòng liên lạc với ${u} ngay: <b>${phone}</b></p>
+      <p style="color:#667;font-size:13px">Hãy coi đây có thể là trường hợp khẩn cấp thật
+      cho đến khi xác nhận được ${u} an toàn.</p>`,
+  },
+};
+
 /** Emergency email fallback (or primary channel when no phone was given). */
 export async function sendEmergencyEmail(buddy: BuddyCall): Promise<boolean> {
   const ec = buddy.emergencyContact;
   if (!ec?.email) return false;
   const { sendEmail } = await import("./notify");
   const when = triggerTimeLabel(buddy.emergencyTriggeredAt ?? new Date().toISOString());
+  const t = EMERGENCY_EMAIL[ec.language ?? buddy.language ?? "en"] ?? EMERGENCY_EMAIL.en;
   const ok = await sendEmail(
     ec.email,
-    `URGENT — ${buddy.name} asked that you be contacted`,
+    t.subject(buddy.name),
     `<div style="font-family:ui-sans-serif,system-ui,sans-serif;max-width:640px;margin:0 auto;color:#223">
-      <h2 style="color:#b00">This could be a real emergency</h2>
-      <p>This is an automated message from an AI agent (Agentic Concierge).</p>
-      <p>The agent just spoke to <b>${buddy.name}</b> on ${when}. During that call,
-      <b>${buddy.name}</b> used their pre-arranged emergency codeword and requested that
-      <b>${ec.name}</b> be contacted.</p>
-      <p>Please try to reach ${buddy.name} right away: <b>${buddy.phoneNumber}</b></p>
-      <p style="color:#667;font-size:13px">Please make sure you understand what is happening —
-      treat this as potentially a real emergency until you have confirmed ${buddy.name} is safe.</p>
+      ${t.body(buddy.name, ec.name, when, buddy.phoneNumber)}
     </div>`,
   );
   if (ok) {

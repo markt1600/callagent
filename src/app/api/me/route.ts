@@ -64,14 +64,22 @@ export async function PATCH(request: NextRequest) {
           { status: 400 },
         );
       }
+      const language = (["en", "ja", "zh", "th", "vi"] as const).find(
+        (l) => l === raw.language,
+      );
       const codeword =
         typeof raw.codeword === "string" && raw.codeword.trim()
           ? raw.codeword.trim().toLowerCase().slice(0, 30)
-          : (user.emergencyContact?.codeword ?? pickEmergencyCodeword([]));
-      user.emergencyContact = { name, phone, email, codeword };
+          : (user.emergencyContact?.codeword ?? pickEmergencyCodeword([], language ?? "en"));
+      user.emergencyContact = { name, phone, email, codeword, language };
     } else {
       user.emergencyContact = undefined;
     }
+  }
+  if (body.buddyLanguage !== undefined) {
+    user.buddyLanguage = (["en", "ja", "zh", "th", "vi"] as const).find(
+      (l) => l === body.buddyLanguage,
+    );
   }
   if (body.contactCardPrompted === true && !user.contactCardPromptedAt) {
     user.contactCardPromptedAt = new Date().toISOString();

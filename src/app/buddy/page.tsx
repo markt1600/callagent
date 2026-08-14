@@ -15,13 +15,23 @@ interface MeResponse {
 const EMPTY = {
   name: "",
   phoneNumber: "",
+  language: "en",
   callAt: "",
   scenario: "",
   ecName: "",
   ecPhone: "",
   ecEmail: "",
   ecCodeword: "",
+  ecLanguage: "",
 };
+
+const LANGUAGE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "zh", label: "Chinese (Mandarin)" },
+  { value: "ja", label: "Japanese" },
+  { value: "th", label: "Thai" },
+  { value: "vi", label: "Vietnamese" },
+];
 
 export default function BuddyPage() {
   const [me, setMe] = useState<MeResponse | null>(null);
@@ -56,10 +66,12 @@ export default function BuddyPage() {
             ...f,
             name: f.name || (u.bookingName ?? u.name ?? "").split(/\s+/)[0] || "",
             phoneNumber: f.phoneNumber || u.contactPhone || "",
+            language: u.buddyLanguage || f.language,
             ecName: f.ecName || u.emergencyContact?.name || "",
             ecPhone: f.ecPhone || u.emergencyContact?.phone || "",
             ecEmail: f.ecEmail || u.emergencyContact?.email || "",
             ecCodeword: f.ecCodeword || u.emergencyContact?.codeword || "",
+            ecLanguage: f.ecLanguage || u.emergencyContact?.language || "",
           }));
         }
       })
@@ -76,6 +88,7 @@ export default function BuddyPage() {
         body: JSON.stringify({
           name: form.name,
           phoneNumber: form.phoneNumber,
+          language: form.language,
           callAt: form.callAt ? new Date(form.callAt).toISOString() : "",
           scenario: form.scenario || undefined,
           emergencyContact: form.ecName.trim()
@@ -84,6 +97,7 @@ export default function BuddyPage() {
                 phone: form.ecPhone || undefined,
                 email: form.ecEmail || undefined,
                 codeword: form.ecCodeword || undefined,
+                language: form.ecLanguage || undefined,
               }
             : undefined,
         }),
@@ -141,6 +155,17 @@ export default function BuddyPage() {
           onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
           placeholder="+6591234567"
         />
+        <label>Call language (M switches if you answer in another one)</label>
+        <select
+          value={form.language}
+          onChange={(e) => setForm({ ...form, language: e.target.value })}
+        >
+          {LANGUAGE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
         <label>When to call</label>
         <input
           type="datetime-local"
@@ -184,6 +209,18 @@ export default function BuddyPage() {
             onChange={(e) => setForm({ ...form, ecEmail: e.target.value })}
             placeholder="sarah@example.com"
           />
+          <label>Contact&apos;s language (for the emergency call/email)</label>
+          <select
+            value={form.ecLanguage}
+            onChange={(e) => setForm({ ...form, ecLanguage: e.target.value })}
+          >
+            <option value="">Same as the call</option>
+            {LANGUAGE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
           <label>Emergency codeword (leave blank to auto-generate)</label>
           <input
             value={form.ecCodeword}

@@ -23,7 +23,16 @@ export default function AccountPage() {
   const [restaurants, setRestaurants] = useState<SavedRestaurant[]>([]);
   const [bookingName, setBookingName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
-  const [ec, setEc] = useState({ name: "", phone: "", email: "", codeword: "" });
+  const [ec, setEc] = useState({ name: "", phone: "", email: "", codeword: "", language: "" });
+  const [buddyLanguage, setBuddyLanguage] = useState("");
+
+  const LANGUAGE_OPTIONS = [
+    { value: "en", label: "English" },
+    { value: "zh", label: "Chinese (Mandarin)" },
+    { value: "ja", label: "Japanese" },
+    { value: "th", label: "Thai" },
+    { value: "vi", label: "Vietnamese" },
+  ];
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +59,9 @@ export default function AccountPage() {
           phone: data.user.emergencyContact?.phone ?? "",
           email: data.user.emergencyContact?.email ?? "",
           codeword: data.user.emergencyContact?.codeword ?? "",
+          language: data.user.emergencyContact?.language ?? "",
         });
+        setBuddyLanguage(data.user.buddyLanguage ?? "");
         const rest = await fetch("/api/me/restaurants").then((r) => r.json());
         setRestaurants(rest.restaurants ?? []);
       }
@@ -74,12 +85,14 @@ export default function AccountPage() {
         body: JSON.stringify({
           bookingName,
           contactPhone,
+          buddyLanguage: buddyLanguage || undefined,
           emergencyContact: ec.name.trim()
             ? {
                 name: ec.name,
                 phone: ec.phone || undefined,
                 email: ec.email || undefined,
                 codeword: ec.codeword || undefined,
+                language: ec.language || undefined,
               }
             : null,
         }),
@@ -243,6 +256,15 @@ export default function AccountPage() {
               onChange={(e) => setContactPhone(e.target.value)}
               placeholder="+6591234567"
             />
+            <label>Buddy call language</label>
+            <select value={buddyLanguage} onChange={(e) => setBuddyLanguage(e.target.value)}>
+              <option value="">English (default)</option>
+              {LANGUAGE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
             <details style={{ marginTop: "0.9rem" }}>
               <summary className="sub" style={{ cursor: "pointer", marginBottom: 0 }}>
                 Emergency contact (used by Buddy Call)
@@ -270,6 +292,18 @@ export default function AccountPage() {
                 onChange={(e) => setEc({ ...ec, email: e.target.value })}
                 placeholder="sarah@example.com"
               />
+              <label>Contact&apos;s language</label>
+              <select
+                value={ec.language}
+                onChange={(e) => setEc({ ...ec, language: e.target.value })}
+              >
+                <option value="">Same as the buddy call</option>
+                {LANGUAGE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
               <label>Emergency codeword</label>
               <input
                 value={ec.codeword}
