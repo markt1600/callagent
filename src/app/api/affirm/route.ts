@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
       recordingUrl,
       language: LANGUAGES.includes(body.language) ? (body.language as BuddyLanguage) : "en",
       persona: body.persona === "ahbeng" ? "ahbeng" : "standard",
+      longChat: body.longChat === true,
       recurrence: ["daily", "monthly", "annual"].includes(body.recurrence)
         ? (body.recurrence as AffirmationCall["recurrence"])
         : undefined,

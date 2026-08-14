@@ -79,6 +79,7 @@ const EMPTY = {
   delivery: "literal",
   language: "en",
   persona: "standard",
+  longChat: false,
   messageMode: "typed" as "typed" | "recorded",
   recurrence: "",
   callTiming: "now" as "now" | "scheduled",
@@ -135,6 +136,7 @@ export default function AffirmPage() {
       delivery: a.literal ? "literal" : "embellish",
       language: a.language ?? "en",
       persona: a.persona ?? "standard",
+      longChat: Boolean(a.longChat),
       messageMode: a.recordingUrl ? "recorded" : "typed",
       recurrence: a.recurrence ?? "",
       callTiming: "scheduled",
@@ -276,6 +278,7 @@ export default function AffirmPage() {
           literal: form.delivery === "literal",
           language: form.language,
           persona: form.persona,
+          longChat: form.messageMode === "typed" && form.longChat,
           recurrence: form.recurrence || undefined,
           recordingUrl,
         }),
@@ -473,6 +476,14 @@ export default function AffirmPage() {
               <option value="literal">Word-for-word (literal)</option>
               <option value="embellish">Approximate — the AI may warmly embellish</option>
             </select>
+            <label style={{ margin: "0.8rem 0 0", textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
+              <input
+                type="checkbox"
+                checked={form.longChat}
+                onChange={(e) => setForm({ ...form, longChat: e.target.checked })}
+              />
+              Longer call — after the message, keep chatting until they hang up
+            </label>
           </>
         ) : (
           <div style={{ marginTop: "0.6rem" }}>
@@ -533,6 +544,7 @@ export default function AffirmPage() {
                   To {a.recipientName} · {a.phoneNumber} · from {a.requesterName} ·{" "}
                   {a.recordingUrl ? "your voice" : a.literal ? "word-for-word" : "embellished"}
                   {!a.recordingUrl && a.persona === "ahbeng" ? " · Ah Beng 🕶️" : ""}
+                  {!a.recordingUrl && a.longChat ? " · stays to chat" : ""}
                   {a.recurrence
                     ? ` · repeats ${a.recurrence === "annual" ? "annually" : a.recurrence}`
                     : ""}

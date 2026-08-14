@@ -58,6 +58,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body.persona !== undefined) {
     call.persona = body.persona === "ahbeng" ? "ahbeng" : "standard";
   }
+  if (body.longChat !== undefined) call.longChat = body.longChat === true;
   if (call.persona === "ahbeng" && call.language !== "zh") call.language = "en";
   if (body.recurrence !== undefined) {
     call.recurrence = ["daily", "monthly", "annual"].includes(body.recurrence)
