@@ -1,7 +1,9 @@
-// TwiML for recorded-message affirmation calls: play the synthesized intro
-// and the requester's own recording, then ask whether they'd like to hear
-// it again — replaying on a yes (see /api/twilio/affirm-replay) until they
-// decline or hang up.
+// Screening gate for recorded affirmation calls. The announcement ("this is
+// a call on behalf of X — there's a personal message for Y") has played and
+// we listened: ANY speech — the recipient answering, an iOS call-screening
+// bot, or a voicemail greeting — advances to the message; silence repeats
+// the announcement, and after 3 rounds the message plays anyway so a silent
+// voicemail still captures it.
 
 import { NextRequest } from "next/server";
 import { getJSON } from "@/lib/store";
@@ -17,17 +19,15 @@ export async function POST(request: NextRequest) {
     return new Response("Invalid signature", { status: 403 });
   }
   const affirmId = request.nextUrl.searchParams.get("affirmId") ?? "";
+  const attempt = Number(request.nextUrl.searchParams.get("n") ?? "1") || 1;
   const a = await getJSON<AffirmationCall>(`affirm:${affirmId}`);
   if (!a?.recordingUrl) {
     return twimlResponse(buildTwiml({ playUrls: [], actionPath: "", language: "en-US", hangup: true }));
   }
 
-  // Screening-aware opening: announce who the call is for and wait for a
-  // voice (the recipient, an iOS screening bot, or a voicemail greeting)
-  // before delivering the message. Without the announce clip, deliver
-  // immediately as before.
-  if (a.announceUrl) {
-    return twimlResponse(announceTwiml(a, 1));
+  const heardVoice = Boolean((params.SpeechResult ?? "").trim());
+  if (heardVoice || attempt >= 3) {
+    return twimlResponse(messageSequenceTwiml(a));
   }
-  return twimlResponse(messageSequenceTwiml(a));
+  return twimlResponse(announceTwiml(a, attempt + 1));
 }

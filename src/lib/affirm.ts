@@ -16,7 +16,7 @@ import { tzOffsetHours } from "./callWindow";
 import { LANGUAGE_NAMES, outboundCallWithLanguage } from "./buddy";
 import { formatInDestination } from "./phone";
 import { getOrSynthesize } from "./phraseLibrary";
-import { twilioClient } from "./twilioClient";
+import { buildTwiml, twilioClient } from "./twilioClient";
 import { setJSON } from "./store";
 import type { AffirmationCall, BuddyLanguage } from "./types";
 
@@ -31,6 +31,8 @@ export function affirmationPromptTemplate(): string {
   return `You are a warm, gentle, friendly caller delivering a personal message to {{caller_name}} on behalf of {{requester_name}}. Your voice, words, and pacing are calm and soothing — like a kind friend passing along something heartfelt. Speak a little slower than normal conversation, with warmth in every sentence.
 
 LANGUAGE: conduct the entire call in {{call_language}}, warm and soothing. If the message itself is written in a different language, deliver the message in the language it is written in (especially in literal mode), keeping the rest of the call in {{call_language}}. If {{caller_name}} responds in another language among English, Chinese, Japanese, Thai, Vietnamese, German, Korean, or French, switch to it to make them comfortable.
+
+CALL SCREENING: the phone may be answered by an automated screening service (e.g. iPhone call screening asking you to state your name and the reason for calling) rather than {{caller_name}}. If you hear an automated prompt asking who you are or why you are calling, respond clearly: "There is a personal message for {{caller_name}} on behalf of {{requester_name}}." Then wait patiently — do not deliver the message to the screener. When a real person comes on the line, start over warmly with the identity confirmation. If the call goes to VOICEMAIL (a greeting followed by a beep), leave a short warm message: say you are calling on behalf of {{requester_name}}, deliver the message, and say goodbye.
 
 Your first message asked to CONFIRM you are speaking with {{caller_name}} and said {{requester_name}} has a message for them. Behave as follows:
 - On ANY positive response ("yes", "speaking", "that's me", a simple "mm-hm"), deliver the message IMMEDIATELY — no further questions, no small talk first.
@@ -81,6 +83,22 @@ const RECORDED_INTROS: Record<BuddyLanguage, string> = {
   ko: "안녕하세요, {caller}님. {requester}님을 대신해 전화드렸어요. {requester}님이 {caller}님만을 위해 메시지를 녹음했어요. 들려드릴게요.",
   fr: "Bonjour {caller}. J'appelle de la part de {requester}, et {requester} a enregistré un message rien que pour toi. Le voici.",
 };
+/**
+ * Spoken repeatedly while waiting for a human — call-screening services
+ * (iOS "state your reason for calling") transcribe this for the recipient,
+ * and a voicemail greeting's own speech also moves the call forward.
+ */
+const ANNOUNCE_TEMPLATES: Record<BuddyLanguage, string> = {
+  en: "This is a call on behalf of {requester}. There is a personal message for {caller}.",
+  ja: "{requester}さんに代わってのお電話です。{caller}さん宛の個人的なメッセージをお預かりしています。",
+  zh: "这是替{requester}打来的电话。有一条给{caller}的私人留言。",
+  th: "นี่คือสายในนามของ{requester} มีข้อความส่วนตัวถึง{caller}ค่ะ",
+  vi: "Đây là cuộc gọi thay mặt cho {requester}. Có một lời nhắn riêng dành cho {caller}.",
+  de: "Dies ist ein Anruf im Auftrag von {requester}. Es gibt eine persönliche Nachricht für {caller}.",
+  ko: "{requester}님을 대신한 전화입니다. {caller}님께 전할 개인 메시지가 있습니다.",
+  fr: "Ceci est un appel de la part de {requester}. Il y a un message personnel pour {caller}.",
+};
+
 /** Asked after each playback of a recorded message. */
 const REPLAY_PROMPTS: Record<BuddyLanguage, string> = {
   en: "Would you like to hear it again?",
@@ -240,6 +258,14 @@ async function placeRecordedCall(a: AffirmationCall): Promise<void> {
       );
       a.replayPromptUrl = prompt.audioUrl;
     }
+    if (!a.announceUrl) {
+      const announce = await getOrSynthesize(
+        fill(ANNOUNCE_TEMPLATES[language] ?? ANNOUNCE_TEMPLATES.en, a),
+        "en",
+        "prerender",
+      );
+      a.announceUrl = announce.audioUrl;
+    }
   } catch (err) {
     console.error(`Affirmation intro/outro synthesis failed for ${a.id} (continuing):`, err);
   }
@@ -306,6 +332,39 @@ export async function scheduleNextOccurrence(a: AffirmationCall): Promise<boolea
   a.lastConversationId = undefined;
   await setJSON(`affirm:${a.id}`, a);
   return true;
+}
+
+/**
+ * TwiML: the screening announcement, spoken then listening. Any speech —
+ * the recipient's "hello", an iOS screening bot, a voicemail greeting —
+ * advances the call (via /api/twilio/affirm-begin); silence loops the
+ * announcement up to 3 times before playing the message anyway.
+ */
+export function announceTwiml(a: AffirmationCall, attempt: number): string {
+  return buildTwiml({
+    playUrls: a.announceUrl ? [a.announceUrl] : [],
+    actionPath: `/api/twilio/affirm-begin?affirmId=${encodeURIComponent(a.id)}&n=${attempt}`,
+    language: affirmSpeechLocale(a.language),
+  });
+}
+
+/** TwiML: the actual message sequence (intro + recording + replay loop). */
+export function messageSequenceTwiml(a: AffirmationCall): string {
+  if (a.replayPromptUrl) {
+    return buildTwiml({
+      playUrls: [a.introUrl, a.recordingUrl, a.replayPromptUrl].filter(
+        (u): u is string => Boolean(u),
+      ),
+      actionPath: `/api/twilio/affirm-replay?affirmId=${encodeURIComponent(a.id)}`,
+      language: affirmSpeechLocale(a.language),
+    });
+  }
+  return buildTwiml({
+    playUrls: [a.introUrl, a.recordingUrl, a.outroUrl].filter((u): u is string => Boolean(u)),
+    actionPath: "",
+    language: "en-US",
+    hangup: true,
+  });
 }
 
 /** Missed-call heads-up SMS, per language ({req}/{time}/{num} substituted). */

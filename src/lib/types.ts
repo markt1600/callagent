@@ -357,6 +357,8 @@ export interface AffirmationCall {
   outroUrl?: string;
   /** Synthesized "hear it again?" prompt URL for recorded-message calls */
   replayPromptUrl?: string;
+  /** Synthesized screening announcement URL ("call on behalf of…") */
+  announceUrl?: string;
   /** Set once the missed-call heads-up SMS has been sent (max one per call) */
   smsSentAt?: string;
   twilioCallSid?: string;
