@@ -139,6 +139,7 @@ export default function AffirmPage() {
       persona: a.persona ?? "standard",
       longChat: Boolean(a.longChat),
       messageMode: a.recordingUrl ? "recorded" : "typed",
+      messageKind: a.messageKind ?? "joke",
       recurrence: a.recurrence ?? "",
       callTiming: "scheduled",
     });
