@@ -375,6 +375,21 @@ export interface AffirmationCall {
   error?: string;
 }
 
+/**
+ * A friend saved on the user's account — selectable as the recipient of an
+ * Affirmation Call, with the saved details applied.
+ */
+export interface Friend {
+  /** Digits of the phone number (stable id) */
+  id: string;
+  name: string;
+  phoneNumber: string;
+  /** Preferred language for calls to this friend */
+  language?: BuddyLanguage;
+  timesCalled?: number;
+  lastCalledAt?: string;
+}
+
 /** One entry in a user's credit ledger (deductions and additions). */
 export interface CreditTransaction {
   id: string;

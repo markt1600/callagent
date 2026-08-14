@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import GoogleSignIn from "../components/GoogleSignIn";
 import BottomNav from "../components/BottomNav";
 import { countryForPrefix } from "@/lib/phone";
-import type { CreditTransaction, SavedRestaurant, UserProfile } from "@/lib/types";
+import type { CreditTransaction, Friend, SavedRestaurant, UserProfile } from "@/lib/types";
 
 interface MeResponse {
   user: UserProfile | null;
@@ -50,6 +50,67 @@ export default function AccountPage() {
   });
   const [editError, setEditError] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [newFriend, setNewFriend] = useState({ name: "", phoneNumber: "", language: "" });
+  const [friendEditingId, setFriendEditingId] = useState<string | null>(null);
+  const [friendEdit, setFriendEdit] = useState({ name: "", phoneNumber: "", language: "" });
+  const [friendError, setFriendError] = useState<string | null>(null);
+
+  async function addFriend() {
+    setFriendError(null);
+    const res = await fetch("/api/me/friends", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: newFriend.name,
+        phoneNumber: newFriend.phoneNumber,
+        language: newFriend.language || undefined,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setFriendError(data.error || `Add failed (${res.status})`);
+      return;
+    }
+    setNewFriend({ name: "", phoneNumber: "", language: "" });
+    setFriends((list) => {
+      const rest = list.filter((f) => f.id !== data.friend.id);
+      return [...rest, data.friend].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  }
+
+  async function saveFriendEdit(id: string) {
+    setFriendError(null);
+    const res = await fetch("/api/me/friends", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id,
+        name: friendEdit.name,
+        phoneNumber: friendEdit.phoneNumber,
+        language: friendEdit.language || undefined,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setFriendError(data.error || `Save failed (${res.status})`);
+      return;
+    }
+    setFriends((list) =>
+      list
+        .filter((f) => f.id !== id && f.id !== data.friend.id)
+        .concat(data.friend)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    );
+    setFriendEditingId(null);
+  }
+
+  async function deleteFriend(id: string) {
+    if (!window.confirm("Remove this friend?")) return;
+    await fetch(`/api/me/friends?id=${id}`, { method: "DELETE" });
+    setFriends((list) => list.filter((f) => f.id !== id));
+    if (friendEditingId === id) setFriendEditingId(null);
+  }
 
   const load = useCallback(async () => {
     try {
@@ -70,6 +131,8 @@ export default function AccountPage() {
         setRestaurants(rest.restaurants ?? []);
         const tx = await fetch("/api/me/transactions").then((r) => r.json());
         setTransactions(tx.transactions ?? []);
+        const fr = await fetch("/api/me/friends").then((r) => r.json());
+        setFriends(fr.friends ?? []);
       }
     } catch {
       /* transient */
@@ -461,6 +524,121 @@ export default function AccountPage() {
                 </div>
               ))
             )}
+          </div>
+
+          <div className="panel">
+            <h2>Your friends</h2>
+            <p className="sub" style={{ marginTop: 0 }}>
+              Friends can be picked as the recipient of an Affirmation Call, with their
+              saved details applied. Anyone you send an affirmation call to is added
+              automatically.
+            </p>
+            {friends.map((f) => (
+              <div key={f.id} className="res-item" style={{ cursor: "default" }}>
+                <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
+                  <div>
+                    <strong>{f.name}</strong>
+                    <div className="meta">
+                      {f.phoneNumber}
+                      {f.language ? ` · ${LANGUAGE_OPTIONS.find((o) => o.value === f.language)?.label ?? f.language}` : ""}
+                      {f.timesCalled ? ` · ${f.timesCalled} call${f.timesCalled > 1 ? "s" : ""}` : ""}
+                    </div>
+                  </div>
+                  <span className="row" style={{ flexShrink: 0, gap: "0.2rem" }}>
+                    <button
+                      className="delete-btn"
+                      title="Edit"
+                      onClick={() => {
+                        if (friendEditingId === f.id) {
+                          setFriendEditingId(null);
+                        } else {
+                          setFriendEditingId(f.id);
+                          setFriendEdit({
+                            name: f.name,
+                            phoneNumber: f.phoneNumber,
+                            language: f.language ?? "",
+                          });
+                        }
+                      }}
+                      style={{ fontSize: "1rem" }}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      className="delete-btn"
+                      title="Remove friend"
+                      onClick={() => deleteFriend(f.id)}
+                      style={{ fontSize: "1.2rem", color: "var(--err)" }}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                </div>
+                {friendEditingId === f.id && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <label>Name</label>
+                    <input
+                      value={friendEdit.name}
+                      onChange={(e) => setFriendEdit({ ...friendEdit, name: e.target.value })}
+                    />
+                    <label>Phone (E.164)</label>
+                    <input
+                      value={friendEdit.phoneNumber}
+                      onChange={(e) => setFriendEdit({ ...friendEdit, phoneNumber: e.target.value })}
+                    />
+                    <label>Preferred language</label>
+                    <select
+                      value={friendEdit.language}
+                      onChange={(e) => setFriendEdit({ ...friendEdit, language: e.target.value })}
+                    >
+                      <option value="">Not set</option>
+                      {LANGUAGE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="row">
+                      <button onClick={() => saveFriendEdit(f.id)}>Save changes</button>
+                      <button className="secondary" onClick={() => setFriendEditingId(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            <label style={{ marginTop: "1rem" }}>Add a friend</label>
+            <div className="row">
+              <input
+                value={newFriend.name}
+                onChange={(e) => setNewFriend({ ...newFriend, name: e.target.value })}
+                placeholder="Name"
+                style={{ flex: "1 1 120px", minWidth: 120 }}
+              />
+              <input
+                value={newFriend.phoneNumber}
+                onChange={(e) => setNewFriend({ ...newFriend, phoneNumber: e.target.value })}
+                placeholder="+6591234567"
+                style={{ flex: "1 1 140px", minWidth: 140 }}
+              />
+              <select
+                value={newFriend.language}
+                onChange={(e) => setNewFriend({ ...newFriend, language: e.target.value })}
+                style={{ flex: "1 1 120px", minWidth: 120 }}
+              >
+                <option value="">Language…</option>
+                {LANGUAGE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button className="secondary" onClick={addFriend}>
+              + Add friend
+            </button>
+            {friendError && <p className="error">{friendError}</p>}
           </div>
         </>
       )}

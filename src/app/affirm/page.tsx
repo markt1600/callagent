@@ -13,7 +13,7 @@ import {
   formatInDestination,
   isoToDestinationWallClock,
 } from "@/lib/phone";
-import type { AffirmationCall, UserProfile } from "@/lib/types";
+import type { AffirmationCall, Friend, UserProfile } from "@/lib/types";
 
 const MAX_RECORD_SECONDS = 180;
 
@@ -107,6 +107,19 @@ export default function AffirmPage() {
   const recorder = useRef<MediaRecorder | null>(null);
   const recTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [friends, setFriends] = useState<Friend[]>([]);
+
+  /** Apply a saved friend's details to the form. */
+  function applyFriend(id: string) {
+    const f = friends.find((x) => x.id === id);
+    if (!f) return;
+    setForm((prev) => ({
+      ...prev,
+      recipientName: f.name,
+      phoneNumber: f.phoneNumber,
+      language: f.language ?? prev.language,
+    }));
+  }
 
   /** Load a pending call into the form for editing. */
   function startEdit(a: AffirmationCall) {
@@ -212,6 +225,10 @@ export default function AffirmPage() {
             ...f,
             requesterName: f.requesterName || u.bookingName || u.name || "",
           }));
+          fetch("/api/me/friends")
+            .then((r) => r.json())
+            .then((d) => setFriends(d.friends ?? []))
+            .catch(() => {});
         }
       })
       .catch(() => {});
@@ -318,6 +335,19 @@ export default function AffirmPage() {
             </a>
             .
           </p>
+        )}
+        {friends.length > 0 && (
+          <>
+            <label>Choose from your friends (fills the details below)</label>
+            <select value="" onChange={(e) => applyFriend(e.target.value)}>
+              <option value="">— Pick a friend —</option>
+              {friends.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name} ({f.phoneNumber})
+                </option>
+              ))}
+            </select>
+          </>
         )}
         <label>Who to call (their name)</label>
         <input

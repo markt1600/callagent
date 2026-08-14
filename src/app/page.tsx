@@ -557,6 +557,35 @@ export default function Dashboard() {
                 .
               </p>
             )}
+            {user && restaurants.length > 0 && (
+              <>
+                <label>Choose from your restaurants (fills the details below)</label>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const r = restaurants.find((x) => x.id === e.target.value);
+                    if (!r) return;
+                    setForm((prev) => ({
+                      ...prev,
+                      restaurantName: r.name,
+                      phoneNumber: r.phoneNumber,
+                      partySize: r.partySize ?? prev.partySize,
+                      language: r.language,
+                      specialRequests: r.specialRequests ?? "",
+                      notifyEmail: r.notifyEmail ?? prev.notifyEmail,
+                      ...preferencesToForm(r.preferences),
+                    }));
+                  }}
+                >
+                  <option value="">— Pick a saved restaurant —</option>
+                  {restaurants.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.phoneNumber})
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
             <label>Restaurant name</label>
             <input
               value={form.restaurantName}

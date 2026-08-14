@@ -3,8 +3,8 @@ import { randomUUID } from "crypto";
 import { getSessionUser } from "@/lib/auth";
 import { dispatchAffirmationCall } from "@/lib/affirm";
 import { destinationWallClockToUtc } from "@/lib/phone";
-import { listJSON, setJSON } from "@/lib/store";
-import type { AffirmationCall, BuddyLanguage } from "@/lib/types";
+import { getJSON, listJSON, setJSON } from "@/lib/store";
+import type { AffirmationCall, BuddyLanguage, Friend } from "@/lib/types";
 
 const LANGUAGES: BuddyLanguage[] = ["en", "ja", "zh", "th", "vi", "de", "ko", "fr"];
 
@@ -106,6 +106,22 @@ export async function POST(request: NextRequest) {
       cycle: 1,
     };
     await setJSON(`affirm:${call.id}`, call);
+
+    // Remember the recipient as a friend on the account (keyed by number).
+    if (user) {
+      const fid = call.phoneNumber.replace(/\D/g, "");
+      const fkey = `userfriend:${user.id}:${fid}`;
+      const prev = await getJSON<Friend>(fkey);
+      const friend: Friend = {
+        id: fid,
+        name: call.recipientName,
+        phoneNumber: call.phoneNumber,
+        language: call.language,
+        timesCalled: (prev?.timesCalled ?? 0) + 1,
+        lastCalledAt: call.createdAt,
+      };
+      await setJSON(fkey, friend);
+    }
 
     // A time that's already here (or within a minute) means "call now".
     if (at.getTime() <= Date.now() + 60_000) {
