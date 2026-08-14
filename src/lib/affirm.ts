@@ -417,14 +417,14 @@ export function messageSequenceTwiml(a: AffirmationCall): string {
 
 /** Missed-call heads-up SMS, per language ({req}/{time}/{num} substituted). */
 const SMS_TEMPLATES: Record<BuddyLanguage, string> = {
-  en: "{req} has a message for you — we just tried to call. We'll try again at {time}. Please look out for a call from {num}, or add this number to your contacts.",
-  ja: "{req}さんからあなたへのメッセージがあり、先ほどお電話しました。{time}に再度おかけします。{num}からの着信にご注意いただくか、この番号を連絡先に登録してください。",
-  zh: "{req}有一条留言想转达给你，我们刚刚致电未接通。我们将于{time}再次来电，请留意来自{num}的电话，或将该号码存入通讯录。",
-  th: "{req}มีข้อความถึงคุณ เราเพิ่งโทรหาคุณ เราจะโทรอีกครั้งเวลา {time} กรุณาสังเกตสายจาก {num} หรือบันทึกเบอร์นี้ไว้ในรายชื่อผู้ติดต่อ",
-  vi: "{req} có một lời nhắn cho bạn — chúng tôi vừa gọi cho bạn. Chúng tôi sẽ gọi lại lúc {time}. Vui lòng chú ý cuộc gọi từ {num} hoặc lưu số này vào danh bạ.",
-  de: "{req} hat eine Nachricht für dich — wir haben gerade versucht anzurufen. Wir versuchen es um {time} erneut. Achte bitte auf einen Anruf von {num} oder speichere die Nummer in deinen Kontakten.",
-  ko: "{req}님이 전하실 메시지가 있어 방금 전화드렸습니다. {time}에 다시 전화드리겠습니다. {num}에서 오는 전화를 확인해 주시거나 이 번호를 연락처에 저장해 주세요.",
-  fr: "{req} a un message pour toi — nous venons d'essayer de t'appeler. Nous réessaierons à {time}. Guette un appel du {num}, ou enregistre ce numéro dans tes contacts.",
+  en: "This is not a scam. {req} has a message for you — we just tried to call. We'll try again at {time}. Please look out for a call from {num}, or add this number to your contacts.",
+  ja: "これは詐欺ではありません。{req}さんからあなたへのメッセージがあり、先ほどお電話しました。{time}に再度おかけします。{num}からの着信にご注意いただくか、この番号を連絡先に登録してください。",
+  zh: "这不是诈骗信息。{req}有一条留言想转达给你，我们刚刚致电未接通。我们将于{time}再次来电，请留意来自{num}的电话，或将该号码存入通讯录。",
+  th: "นี่ไม่ใช่ข้อความหลอกลวง {req}มีข้อความถึงคุณ เราเพิ่งโทรหาคุณ เราจะโทรอีกครั้งเวลา {time} กรุณาสังเกตสายจาก {num} หรือบันทึกเบอร์นี้ไว้ในรายชื่อผู้ติดต่อ",
+  vi: "Đây không phải lừa đảo. {req} có một lời nhắn cho bạn — chúng tôi vừa gọi cho bạn. Chúng tôi sẽ gọi lại lúc {time}. Vui lòng chú ý cuộc gọi từ {num} hoặc lưu số này vào danh bạ.",
+  de: "Dies ist kein Betrug. {req} hat eine Nachricht für dich — wir haben gerade versucht anzurufen. Wir versuchen es um {time} erneut. Achte bitte auf einen Anruf von {num} oder speichere die Nummer in deinen Kontakten.",
+  ko: "사기 문자가 아닙니다. {req}님이 전하실 메시지가 있어 방금 전화드렸습니다. {time}에 다시 전화드리겠습니다. {num}에서 오는 전화를 확인해 주시거나 이 번호를 연락처에 저장해 주세요.",
+  fr: "Ceci n'est pas une arnaque. {req} a un message pour toi — nous venons d'essayer de t'appeler. Nous réessaierons à {time}. Guette un appel du {num}, ou enregistre ce numéro dans tes contacts.",
 };
 
 /**
