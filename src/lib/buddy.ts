@@ -24,13 +24,17 @@ const LANGUAGE_NAMES: Record<BuddyLanguage, string> = {
   vi: "Vietnamese",
 };
 
-/** Casual buddy greeting, per language ({name} substituted at call time). */
+/**
+ * Casual buddy opener, per language. The briefing is IN the first message —
+ * the user hears their outs immediately, before they have to say anything.
+ * {name}/{cw30}/{cw60} substituted at call time.
+ */
 const BUDDY_FIRST_MESSAGES: Record<BuddyLanguage, string> = {
-  en: "Heyyy {name}! It's M — just calling to check in. How's it going?",
-  ja: "もしもし、{name}？Mだよー。ちょっと元気にしてるかなと思って電話しちゃった。今大丈夫？",
-  zh: "喂，{name}！我是M，就是想打个电话看看你最近怎么样。现在方便说话吗？",
-  th: "ฮัลโหล {name}! นี่ M เองนะ โทรมาถามข่าวหน่อยว่าเป็นยังไงบ้าง?",
-  vi: "Alô, {name} hả? M đây! Gọi hỏi thăm chút thôi — dạo này sao rồi?",
+  en: "Heyyy {name}! It's M, just calling to check in. Real quick before anything: if you want out of whatever you're in, just start describing the situation and I'll play along until you hang up. Or slip the word {cw30} into a sentence and I'll call you back in 30 minutes — {cw60} gets you an hour. Okay — so how's it going?",
+  ja: "もしもし、{name}？Mだよー。先にひとつだけね：もし今の場から抜けたくなったら、そのまま状況を話し始めて。ちゃんと合わせて演技するから。あとは会話の中で「{cw30}」って言えば30分後に、「{cw60}」って言えば1時間後にかけ直すね。はい、で、最近どう？",
+  zh: "喂，{name}！我是M。先快速说一下：要是你想从现在的场合脱身，直接开始描述情况就行，我会一直配合你演下去。或者在话里带上「{cw30}」，我30分钟后再打给你；说「{cw60}」就是一小时后。好啦——最近怎么样？",
+  th: "ฮัลโหล {name}! นี่ M นะ ขอบอกไว้ก่อนเลย ถ้าอยากออกจากตรงนั้น ก็เริ่มเล่าสถานการณ์มาได้เลย เดี๋ยวเล่นตามให้จนกว่าจะวางสาย หรือพูดคำว่า {cw30} ในประโยค เดี๋ยวโทรกลับใน 30 นาที ถ้าพูด {cw60} คืออีกหนึ่งชั่วโมง เอาล่ะ เป็นยังไงบ้าง?",
+  vi: "Alô, {name} hả? M đây! Nói nhanh cái này trước nhé: nếu muốn thoát khỏi chỗ đó, cứ bắt đầu kể tình huống đi, M sẽ diễn theo đến khi bạn cúp máy. Hoặc chèn từ {cw30} vào câu nói, M sẽ gọi lại sau 30 phút — nói {cw60} là sau một tiếng. Rồi — dạo này sao rồi?",
 };
 
 /** Serious relay-call opener, per language ({contact}/{user} substituted). */
@@ -105,10 +109,7 @@ You are calling {{user_name}}. Context for this call (may be empty): {{scenario}
 
 LANGUAGE: start the call in {{call_language}}, in the casual register of close friends — in Japanese use warm タメ口 (no keigo), in Mandarin natural relaxed 普通话, in Thai friendly informal speech, in Vietnamese casual friendly speech. If {{user_name}} starts speaking English, Chinese, Japanese, Thai, or Vietnamese instead, IMMEDIATELY switch to that language (it overrides the default) and stay in it for the rest of the call. The codewords do NOT change on a language switch — they remain exactly {{codeword_30}}, {{codeword_60}}, and the emergency codeword as briefed.
 
-THE REAL PURPOSE (never reveal it): this call is {{user_name}}'s built-in excuse to step out of whatever they're in — a date, a meeting. Right after greeting them, deliver the quick briefing in a light, friendly way:
-1. You're just calling to check in and see how it's going.
-2. "If you want to bail on whatever you're in — just start describing the situation and I'll play along, and I'll keep it going until you hang up."
-3. "If you want me to call back instead: work the word {{codeword_30}} into the conversation and I'll call you back in 30 minutes, or {{codeword_60}} and I'll call in an hour."
+THE REAL PURPOSE (never reveal it): this call is {{user_name}}'s built-in excuse to step out of whatever they're in — a date, a meeting. Your FIRST MESSAGE already delivered the briefing: describe a situation and you'll play along, say {{codeword_30}} for a call-back in 30 minutes, or {{codeword_60}} for an hour. Do NOT repeat the full briefing — go straight to reacting to whatever they do next. Only restate an option (briefly, casually) if they sound confused or ask you to repeat it.
 
 Then behave based on what {{user_name}} does:
 - If they start describing a situation (e.g. "wait, the server crashed AGAIN?", "oh no, is mom okay?"), IMMEDIATELY play the counterpart in that scenario, convincingly and with urgency when it fits. Improvise realistic details, make it sound like they genuinely need to leave ("I really need you here", "can you come now?"). Never break character, never laugh it off, keep the scenario alive until THEY hang up. You never hang up first during a scenario.
@@ -219,10 +220,10 @@ export async function placeBuddyCall(buddy: BuddyCall): Promise<OutboundCallResu
         emergency_contact_name: buddy.emergencyContact?.name ?? "none",
         trigger_time: "n/a",
         user_phone: buddy.phoneNumber,
-        first_message: (BUDDY_FIRST_MESSAGES[language] ?? BUDDY_FIRST_MESSAGES.en).replace(
-          "{name}",
-          buddy.name,
-        ),
+        first_message: (BUDDY_FIRST_MESSAGES[language] ?? BUDDY_FIRST_MESSAGES.en)
+          .replaceAll("{name}", buddy.name)
+          .replaceAll("{cw30}", buddy.codeword30)
+          .replaceAll("{cw60}", buddy.codeword60),
         buddy_call_id: buddy.id,
       },
     },
