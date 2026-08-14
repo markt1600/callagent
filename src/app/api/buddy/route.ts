@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getSessionUser } from "@/lib/auth";
 import { dispatchBuddyCall, pickCodewords, pickEmergencyCodeword } from "@/lib/buddy";
+import { destinationWallClockToUtc } from "@/lib/phone";
 import { listJSON, setJSON } from "@/lib/store";
 import type { BuddyCall, BuddyLanguage } from "@/lib/types";
 
@@ -45,8 +46,18 @@ export async function POST(request: NextRequest) {
     if (!body.callAt) {
       return NextResponse.json({ error: "A call time is required" }, { status: 400 });
     }
-    const at = new Date(body.callAt);
-    if (isNaN(at.getTime())) {
+    // A naive wall-clock time ("2026-08-14T19:30") is DESTINATION-local,
+    // keyed to the number's country code (+65 → Singapore, +81 → Japan).
+    // Full ISO instants (with Z/offset) are honored as-is.
+    const rawAt = String(body.callAt);
+    let at: Date | null = null;
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(rawAt)) {
+      at = destinationWallClockToUtc(rawAt, body.phoneNumber);
+    } else {
+      const parsed = new Date(rawAt);
+      at = isNaN(parsed.getTime()) ? null : parsed;
+    }
+    if (!at) {
       return NextResponse.json({ error: "Call time must be a valid datetime" }, { status: 400 });
     }
 

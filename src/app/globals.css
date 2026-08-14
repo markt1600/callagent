@@ -315,6 +315,11 @@ button.danger:hover {
   border-color: rgba(187, 59, 34, 0.5);
   background: #f7e8e2;
 }
+/* Bail Out Call that went ahead but an extension (30/60 min) was requested */
+.res-item.extended {
+  border-color: rgba(192, 123, 40, 0.6);
+  background: #f7efdd;
+}
 .res-item.won.selected,
 .res-item.lost.selected {
   box-shadow: 0 0 0 3px rgba(187, 59, 34, 0.12);

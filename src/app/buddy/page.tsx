@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import BottomNav from "../components/BottomNav";
+import { destinationTimeLabel, formatInDestination } from "@/lib/phone";
 import type { BuddyCall, UserProfile } from "@/lib/types";
 
 interface MeResponse {
@@ -89,7 +90,9 @@ export default function BuddyPage() {
           name: form.name,
           phoneNumber: form.phoneNumber,
           language: form.language,
-          callAt: form.callAt ? new Date(form.callAt).toISOString() : "",
+          // Sent as naive wall-clock — the server interprets it in the
+          // destination country's timezone (keyed to the number's prefix).
+          callAt: form.callAt,
           scenario: form.scenario || undefined,
           emergencyContact: form.ecName.trim()
             ? {
@@ -119,20 +122,28 @@ export default function BuddyPage() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm("Delete this buddy call?")) return;
+    if (!window.confirm("Delete this bail out call?")) return;
     await fetch(`/api/buddy/${id}`, { method: "DELETE" });
     await refresh();
+  }
+
+  /** Card tint: green = went ahead clean, orange = extension requested, red = emergency/failed. */
+  function cardClass(b: BuddyCall): string {
+    if (b.emergencyTriggeredAt || b.status === "failed") return "lost";
+    if (b.rescheduledFor) return "extended";
+    if (b.status === "completed") return "won";
+    return "";
   }
 
   return (
     <main style={{ maxWidth: 640 }}>
       <div className="eyebrow">marktan.ai · phone concierge</div>
       <h1>
-        Buddy <em>Call</em>
+        Bail Out <em>Call</em>
       </h1>
       <nav className="tabs">
         <a href="/">Reservations</a>
-        <a className="active">Buddy Call</a>
+        <a className="active">Bail Out Call</a>
         <a href="/account">Account</a>
       </nav>
       <p className="sub">
@@ -142,7 +153,7 @@ export default function BuddyPage() {
       </p>
 
       <div className="panel">
-        <h2>Schedule a buddy call</h2>
+        <h2>Schedule a bail out call</h2>
         <label>Your first name (what M calls you)</label>
         <input
           value={form.name}
@@ -166,12 +177,22 @@ export default function BuddyPage() {
             </option>
           ))}
         </select>
-        <label>When to call</label>
+        <label>
+          When to call —{" "}
+          {form.phoneNumber.startsWith("+")
+            ? destinationTimeLabel(form.phoneNumber)
+            : "local time of the number's country"}
+        </label>
         <input
           type="datetime-local"
           value={form.callAt}
           onChange={(e) => setForm({ ...form, callAt: e.target.value })}
         />
+        {form.phoneNumber.startsWith("+") && (
+          <p className="sub" style={{ margin: "0.3rem 0 0" }}>
+            Keyed to the number&apos;s country code: +65 → Singapore time, +81 → Japan time.
+          </p>
+        )}
         <label>The setting (optional — helps M sound right)</label>
         <textarea
           value={form.scenario}
@@ -188,7 +209,7 @@ export default function BuddyPage() {
             it once more to confirm, acknowledges, hangs up — then calls your emergency
             contact (or emails them if no phone is given), identifying itself as an AI agent
             and telling them this could be a real emergency.
-            {me?.user ? " Saved to your account for future buddy calls." : ""}
+            {me?.user ? " Saved to your account for future bail out calls." : ""}
           </p>
           <label>Contact name</label>
           <input
@@ -230,7 +251,7 @@ export default function BuddyPage() {
         </details>
 
         <button onClick={create} disabled={busy}>
-          {busy ? "Scheduling…" : "🤙 Schedule buddy call"}
+          {busy ? "Scheduling…" : "🤙 Schedule bail out call"}
         </button>
         <p className="sub" style={{ margin: "0.5rem 0 0" }}>
           Costs the same credits as any call to that destination. If the call doesn&apos;t
@@ -240,13 +261,13 @@ export default function BuddyPage() {
       </div>
 
       <div className="panel">
-        <h2>Your buddy calls</h2>
+        <h2>Your bail out calls</h2>
         {calls.length === 0 && <p className="sub">None scheduled yet.</p>}
         {calls.map((b) => (
-          <div key={b.id} className="res-item" style={{ cursor: "default" }}>
+          <div key={b.id} className={`res-item ${cardClass(b)}`} style={{ cursor: "default" }}>
             <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
               <div>
-                <strong>{new Date(b.callAt).toLocaleString()}</strong>{" "}
+                <strong>{formatInDestination(b.callAt, b.phoneNumber)}</strong>{" "}
                 <span className={`badge ${b.status}`}>{b.status}</span>
                 <div className="meta">
                   {b.phoneNumber} · for {b.name}
@@ -299,7 +320,8 @@ export default function BuddyPage() {
             )}
             {b.rescheduledFor && b.status === "scheduled" && (
               <div className="meta" style={{ marginTop: "0.3rem" }}>
-                Codeword heard — calling back at {new Date(b.rescheduledFor).toLocaleTimeString()}.
+                Codeword heard — calling back at{" "}
+                {formatInDestination(b.rescheduledFor, b.phoneNumber)}.
               </div>
             )}
             {b.summary && (

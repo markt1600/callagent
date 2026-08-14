@@ -467,7 +467,7 @@ export default function Dashboard() {
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center", margin: "0.6rem 0 1.2rem" }}>
         <nav className="tabs" style={{ margin: 0 }}>
           <a className="active">Reservations</a>
-          <a href="/buddy">Buddy Call</a>
+          <a href="/buddy">Bail Out Call</a>
           <a href="/account">Account</a>
         </nav>
         {me && (

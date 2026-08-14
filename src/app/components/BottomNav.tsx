@@ -17,7 +17,7 @@ export default function BottomNav({
       </a>
       <a href="/buddy" className={active === "buddy" ? "active" : ""}>
         <span className="icon">🤙</span>
-        Buddy Call
+        Bail Out
       </a>
       <a href="/account" className={active === "account" ? "active" : ""}>
         <span className="icon">👤</span>

@@ -162,7 +162,7 @@ export default function AccountPage() {
       </h1>
       <nav className="tabs">
         <a href="/">Reservations</a>
-        <a href="/buddy">Buddy Call</a>
+        <a href="/buddy">Bail Out Call</a>
         <a className="active">Account</a>
       </nav>
 
@@ -256,7 +256,7 @@ export default function AccountPage() {
               onChange={(e) => setContactPhone(e.target.value)}
               placeholder="+6591234567"
             />
-            <label>Buddy call language</label>
+            <label>Bail out call language</label>
             <select value={buddyLanguage} onChange={(e) => setBuddyLanguage(e.target.value)}>
               <option value="">English (default)</option>
               {LANGUAGE_OPTIONS.map((o) => (
@@ -267,10 +267,10 @@ export default function AccountPage() {
             </select>
             <details style={{ marginTop: "0.9rem" }}>
               <summary className="sub" style={{ cursor: "pointer", marginBottom: 0 }}>
-                Emergency contact (used by Buddy Call)
+                Emergency contact (used by Bail Out Call)
               </summary>
               <p className="sub" style={{ margin: "0.6rem 0 0" }}>
-                Pre-fills the emergency section of every buddy call. Clear the name to
+                Pre-fills the emergency section of every bail out call. Clear the name to
                 remove it.
               </p>
               <label>Contact name</label>
@@ -297,7 +297,7 @@ export default function AccountPage() {
                 value={ec.language}
                 onChange={(e) => setEc({ ...ec, language: e.target.value })}
               >
-                <option value="">Same as the buddy call</option>
+                <option value="">Same as the bail out call</option>
                 {LANGUAGE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
