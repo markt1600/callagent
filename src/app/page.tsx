@@ -468,6 +468,7 @@ export default function Dashboard() {
         <nav className="tabs" style={{ margin: 0 }}>
           <a className="active">Reservations</a>
           <a href="/buddy">Bail Out Call</a>
+          <a href="/affirm">Affirmation Call</a>
           <a href="/account">Account</a>
         </nav>
         {me && (

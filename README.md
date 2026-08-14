@@ -123,6 +123,12 @@ A scheduled, friendly check-in call to **your own phone** — a built-in excuse 
 
 Setup: create a **second** ElevenLabs Conversational AI agent, paste the prompt from `src/lib/buddy.ts` → `buddyPromptTemplate()`, set its **First message** to `{{first_message}}`, attach the same imported Twilio number, keep the same post-call webhook (both `post_call_transcription` and `call_initiation_failure` events), and set `ELEVENLABS_BUDDY_AGENT_ID`.
 
+### Affirmation Call
+
+A warm, soothing call that delivers a personal message to someone on the requester's behalf. Specify who to call, their number, the time (**destination-local**, keyed to the number's prefix), the requester's name (prefilled from the account when signed in), the message, and whether delivery is **word-for-word (literal)** or **approximate** (the AI may warmly embellish without changing the meaning). The call opens with "Hi *name*, I'm calling on behalf of *requester*, and *requester* just wanted to let you know the following." No-answer retry policy: once **1 hour** after the miss, once more **2 hours** after that — skipped if that would land past 10 PM (or before 8 AM) at the destination — then **the next day at the originally scheduled time**, repeating the cycle once before giving up.
+
+Setup: create a **third** ElevenLabs Conversational AI agent, paste the prompt from `src/lib/affirm.ts` → `affirmationPromptTemplate()`, set its **First message** to `{{first_message}}`, attach the same imported Twilio number and webhook (both events), and set `ELEVENLABS_AFFIRMATION_AGENT_ID`.
+
 ### Accounts & guest mode
 
 - **Google sign-in** is optional. Create an OAuth **Web application** client in Google Cloud Console (APIs & Services → Credentials), add your deployment origin and `http://localhost:3000` under **Authorized JavaScript origins** (no redirect URI needed), then set `NEXT_PUBLIC_GOOGLE_CLIENT_ID` and `AUTH_SECRET` (`openssl rand -hex 32`). Without them, the app runs in guest mode only.

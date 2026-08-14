@@ -22,8 +22,10 @@ import {
   transcriptMentions,
 } from "@/lib/buddy";
 
+import { handleAffirmationNoAnswer } from "@/lib/affirm";
+
 export const maxDuration = 120;
-import type { BuddyCall, CallSession, ReservationRequest } from "@/lib/types";
+import type { AffirmationCall, BuddyCall, CallSession, ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -103,6 +105,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // Affirmation call didn't connect: staged retry (+1h, +2h unless past
+    // 10 PM local, next day at the original time).
+    const affirmations = await listJSON<AffirmationCall>("affirm:");
+    const affirmation = affirmations.find(
+      (a) =>
+        a.lastConversationId &&
+        a.lastConversationId === payload.data!.conversation_id &&
+        a.status === "calling",
+    );
+    if (affirmation) {
+      await handleAffirmationNoAnswer(affirmation);
+      return NextResponse.json({ ok: true });
+    }
+
     const buddy = buddies.find(
       (b) => b.lastConversationId && b.lastConversationId === payload.data!.conversation_id,
     );
@@ -147,6 +163,28 @@ export async function POST(request: NextRequest) {
     if (buddy) {
       buddy.emergencyStatus = "notified";
       await setJSON(`buddy:${buddy.id}`, buddy);
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  // Affirmation call completed: store the transcript and mark delivered.
+  const affirmationCallId = dynVars?.affirmation_call_id;
+  if (affirmationCallId) {
+    const affirmation = await getJSON<AffirmationCall>(`affirm:${affirmationCallId}`);
+    if (affirmation) {
+      affirmation.turns = (data.transcript ?? [])
+        .filter((t) => t.message)
+        .map((t) => ({
+          ts: "",
+          speaker: t.role === "agent" ? ("agent" as const) : ("restaurant" as const),
+          text: t.message!,
+        }));
+      affirmation.summary = data.analysis?.transcript_summary;
+      affirmation.status = "completed";
+      await setJSON(`affirm:${affirmation.id}`, affirmation);
+      // Recurring calls line up the next occurrence.
+      const { scheduleNextOccurrence } = await import("@/lib/affirm");
+      await scheduleNextOccurrence(affirmation);
     }
     return NextResponse.json({ ok: true });
   }

@@ -9,12 +9,16 @@ import { config } from "./config";
 
 const LOCAL_AUDIO_DIR = path.join(process.cwd(), ".data", "audio");
 
-/** Store MP3 bytes under `key` (e.g. "library/ab12cd.mp3"); returns a public URL. */
-export async function storeAudio(key: string, bytes: Buffer): Promise<string> {
+/** Store audio bytes under `key` (e.g. "library/ab12cd.mp3"); returns a public URL. */
+export async function storeAudio(
+  key: string,
+  bytes: Buffer,
+  contentType = "audio/mpeg",
+): Promise<string> {
   if (config.blob.token) {
     const blob = await put(`audio/${key}`, bytes, {
       access: "public",
-      contentType: "audio/mpeg",
+      contentType,
       token: config.blob.token,
       addRandomSuffix: false,
     });

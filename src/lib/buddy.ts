@@ -16,7 +16,7 @@ import type { BuddyCall, BuddyLanguage } from "./types";
 
 const API = "https://api.elevenlabs.io";
 
-const LANGUAGE_NAMES: Record<BuddyLanguage, string> = {
+export const LANGUAGE_NAMES: Record<BuddyLanguage, string> = {
   en: "English",
   ja: "Japanese",
   zh: "Mandarin Chinese",
@@ -148,7 +148,7 @@ interface OutboundCallResult {
  * override if the agent hasn't enabled it (the prompt's {{call_language}}
  * still steers the spoken language).
  */
-async function outboundCallWithLanguage(
+export async function outboundCallWithLanguage(
   body: Record<string, unknown>,
   clientData: Record<string, unknown>,
   language: BuddyLanguage,

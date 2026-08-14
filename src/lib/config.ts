@@ -20,6 +20,8 @@ export const config = {
     agentId: process.env.ELEVENLABS_AGENT_ID || "",
     /** Separate Conversational AI agent for Buddy Calls */
     buddyAgentId: process.env.ELEVENLABS_BUDDY_AGENT_ID || "",
+    /** Separate Conversational AI agent for Affirmation Calls */
+    affirmationAgentId: process.env.ELEVENLABS_AFFIRMATION_AGENT_ID || "",
     /** Phone number imported into ElevenLabs from Twilio (Agent mode) */
     agentPhoneNumberId: process.env.ELEVENLABS_AGENT_PHONE_NUMBER_ID || "",
     /** HMAC secret for post-call webhooks */

@@ -321,6 +321,60 @@ export interface BuddyCall {
   error?: string;
 }
 
+/**
+ * Affirmation Call: a warm, soothing call that delivers a personal message
+ * to someone on the requester's behalf, at a time given in the DESTINATION
+ * number's timezone. Retry policy on no-answer: +1 hour, then +2 more hours
+ * (skipped if that lands past 10 PM local), then the next day at the
+ * originally scheduled time — one extra day, then failed.
+ */
+export interface AffirmationCall {
+  id: string;
+  createdAt: string;
+  /** Owning user (Google sub) — absent for guest-mode calls */
+  userId?: string;
+  /** The recipient's number to ring, E.164 */
+  phoneNumber: string;
+  /** Recipient's name (greeted by it) */
+  recipientName: string;
+  /** Who the message is from (the user, when signed in) */
+  requesterName: string;
+  /** Language the agent speaks when calling the recipient */
+  language: BuddyLanguage;
+  /** The message to deliver (may be empty when a recording is attached) */
+  message: string;
+  /** True = word-for-word delivery; false = the AI may warmly embellish */
+  literal: boolean;
+  /**
+   * The requester's own recorded voice message (public audio URL). When set,
+   * the call is placed via Twilio and REPLAYS this recording instead of the
+   * AI agent speaking the message.
+   */
+  recordingUrl?: string;
+  /** Synthesized intro clip URL for recorded-message calls */
+  introUrl?: string;
+  /** Synthesized outro clip URL for recorded-message calls */
+  outroUrl?: string;
+  twilioCallSid?: string;
+  /** Next scheduled attempt (UTC ISO) */
+  callAt: string;
+  /** The day-1 scheduled time — next-day retries land at this wall-clock time */
+  originalCallAt: string;
+  /** Repeat the call on a schedule (destination wall-clock preserved) */
+  recurrence?: "daily" | "monthly" | "annual";
+  status: "scheduled" | "calling" | "completed" | "failed" | "cancelled";
+  /** Total dials across all days */
+  attempts: number;
+  /** Dials within the current day's cycle (max 3) */
+  attemptsInCycle: number;
+  /** 1 = original day, 2 = next-day retry */
+  cycle: number;
+  lastConversationId?: string;
+  turns?: CallTurn[];
+  summary?: string;
+  error?: string;
+}
+
 /** Persistent phrase-library entry: one synthesized audio file, reused forever. */
 export interface LibraryEntry {
   /** sha256 of language|voiceId|modelId|normalizedText */

@@ -9,8 +9,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { listJSON, setJSON } from "@/lib/store";
 import { dispatchCall } from "@/lib/dispatch";
 import { dispatchBuddyCall } from "@/lib/buddy";
+import { dispatchAffirmationCall } from "@/lib/affirm";
 import { isWithinCallWindow, nextCallWindowTime } from "@/lib/callWindow";
-import type { BuddyCall, ReservationRequest } from "@/lib/types";
+import type { AffirmationCall, BuddyCall, ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -51,9 +52,19 @@ export async function GET(request: NextRequest) {
     dispatched.push(`buddy-${buddy.id}:${result.status}`);
   }
 
+  // Affirmation calls: user-chosen destination-local time, no window policy.
+  const affirmations = await listJSON<AffirmationCall>("affirm:");
+  const dueAffirmations = affirmations.filter(
+    (a) => a.status === "scheduled" && new Date(a.callAt).getTime() <= now,
+  );
+  for (const affirmation of dueAffirmations) {
+    const result = await dispatchAffirmationCall(affirmation);
+    dispatched.push(`affirm-${affirmation.id}:${result.status}`);
+  }
+
   return NextResponse.json({
-    checked: reservations.length + buddies.length,
-    due: due.length + dueBuddies.length,
+    checked: reservations.length + buddies.length + affirmations.length,
+    due: due.length + dueBuddies.length + dueAffirmations.length,
     dispatched,
   });
 }
