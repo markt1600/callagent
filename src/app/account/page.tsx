@@ -23,6 +23,7 @@ export default function AccountPage() {
   const [restaurants, setRestaurants] = useState<SavedRestaurant[]>([]);
   const [bookingName, setBookingName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [ec, setEc] = useState({ name: "", phone: "", email: "", codeword: "" });
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +45,12 @@ export default function AccountPage() {
       if (data.user) {
         setBookingName(data.user.bookingName ?? "");
         setContactPhone(data.user.contactPhone ?? "");
+        setEc({
+          name: data.user.emergencyContact?.name ?? "",
+          phone: data.user.emergencyContact?.phone ?? "",
+          email: data.user.emergencyContact?.email ?? "",
+          codeword: data.user.emergencyContact?.codeword ?? "",
+        });
         const rest = await fetch("/api/me/restaurants").then((r) => r.json());
         setRestaurants(rest.restaurants ?? []);
       }
@@ -64,7 +71,18 @@ export default function AccountPage() {
       const res = await fetch("/api/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingName, contactPhone }),
+        body: JSON.stringify({
+          bookingName,
+          contactPhone,
+          emergencyContact: ec.name.trim()
+            ? {
+                name: ec.name,
+                phone: ec.phone || undefined,
+                email: ec.email || undefined,
+                codeword: ec.codeword || undefined,
+              }
+            : null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
@@ -225,6 +243,40 @@ export default function AccountPage() {
               onChange={(e) => setContactPhone(e.target.value)}
               placeholder="+6591234567"
             />
+            <details style={{ marginTop: "0.9rem" }}>
+              <summary className="sub" style={{ cursor: "pointer", marginBottom: 0 }}>
+                Emergency contact (used by Buddy Call)
+              </summary>
+              <p className="sub" style={{ margin: "0.6rem 0 0" }}>
+                Pre-fills the emergency section of every buddy call. Clear the name to
+                remove it.
+              </p>
+              <label>Contact name</label>
+              <input
+                value={ec.name}
+                onChange={(e) => setEc({ ...ec, name: e.target.value })}
+                placeholder="Sarah Tan"
+              />
+              <label>Contact phone (E.164)</label>
+              <input
+                value={ec.phone}
+                onChange={(e) => setEc({ ...ec, phone: e.target.value })}
+                placeholder="+6598765432"
+              />
+              <label>Contact email</label>
+              <input
+                type="email"
+                value={ec.email}
+                onChange={(e) => setEc({ ...ec, email: e.target.value })}
+                placeholder="sarah@example.com"
+              />
+              <label>Emergency codeword</label>
+              <input
+                value={ec.codeword}
+                onChange={(e) => setEc({ ...ec, codeword: e.target.value })}
+                placeholder="e.g. redwood"
+              />
+            </details>
             <div className="row">
               <button onClick={save} disabled={busy}>
                 {busy ? "Saving…" : "Save"}

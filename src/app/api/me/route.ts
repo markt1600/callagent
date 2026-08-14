@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authConfigured, getSessionUser, googleClientId, isAdminUser } from "@/lib/auth";
+import { pickEmergencyCodeword } from "@/lib/buddy";
 import { config } from "@/lib/config";
 import { creditsOf, getCreditCosts } from "@/lib/credits";
 import { setJSON } from "@/lib/store";
@@ -46,6 +47,31 @@ export async function PATCH(request: NextRequest) {
       );
     }
     user.contactPhone = phone || undefined;
+  }
+  if (body.emergencyContact !== undefined) {
+    const raw = body.emergencyContact as Record<string, unknown> | null;
+    if (raw && typeof raw === "object" && String(raw.name ?? "").trim()) {
+      const name = String(raw.name).trim().slice(0, 60);
+      const phone =
+        typeof raw.phone === "string" && /^\+\d{7,15}$/.test(raw.phone.trim())
+          ? raw.phone.trim()
+          : undefined;
+      const email =
+        typeof raw.email === "string" && raw.email.includes("@") ? raw.email.trim() : undefined;
+      if (!phone && !email) {
+        return NextResponse.json(
+          { error: "Emergency contact needs a phone number (E.164) or an email address" },
+          { status: 400 },
+        );
+      }
+      const codeword =
+        typeof raw.codeword === "string" && raw.codeword.trim()
+          ? raw.codeword.trim().toLowerCase().slice(0, 30)
+          : (user.emergencyContact?.codeword ?? pickEmergencyCodeword([]));
+      user.emergencyContact = { name, phone, email, codeword };
+    } else {
+      user.emergencyContact = undefined;
+    }
   }
   if (body.contactCardPrompted === true && !user.contactCardPromptedAt) {
     user.contactCardPromptedAt = new Date().toISOString();

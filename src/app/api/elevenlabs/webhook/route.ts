@@ -13,8 +13,12 @@ import { analyzeOutcome } from "@/lib/analyzeCall";
 import {
   BUDDY_MAX_ATTEMPTS,
   BUDDY_RETRY_SECONDS,
+  countMentions,
   dispatchBuddyCall,
+  notifyEmergencyContact,
+  placeEmergencyCall,
   rescheduleBuddy,
+  sendEmergencyEmail,
   transcriptMentions,
 } from "@/lib/buddy";
 
@@ -72,6 +76,33 @@ export async function POST(request: NextRequest) {
     // Buddy calls first (exact conversation match): retry every 30 seconds,
     // up to 5 tries, until the user picks up.
     const buddies = await listJSON<BuddyCall>("buddy:");
+
+    // Emergency-relay call didn't connect: retry up to 3 times, then fall
+    // back to email so the contact is never silently dropped.
+    const emergencyBuddy = buddies.find(
+      (b) =>
+        b.emergencyConversationId && b.emergencyConversationId === payload.data!.conversation_id,
+    );
+    if (emergencyBuddy) {
+      if ((emergencyBuddy.emergencyAttempts ?? 0) < 3) {
+        await new Promise((r) => setTimeout(r, BUDDY_RETRY_SECONDS * 1000));
+        try {
+          await placeEmergencyCall(emergencyBuddy);
+        } catch (err) {
+          console.error("Emergency relay retry failed:", err);
+          await sendEmergencyEmail(emergencyBuddy);
+        }
+      } else {
+        const emailed = await sendEmergencyEmail(emergencyBuddy);
+        if (!emailed) {
+          emergencyBuddy.emergencyStatus = "failed";
+          emergencyBuddy.error = "Emergency contact did not answer and email was unavailable";
+          await setJSON(`buddy:${emergencyBuddy.id}`, emergencyBuddy);
+        }
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     const buddy = buddies.find(
       (b) => b.lastConversationId && b.lastConversationId === payload.data!.conversation_id,
     );
@@ -109,9 +140,20 @@ export async function POST(request: NextRequest) {
 
   const data = payload.data;
 
+  // Emergency-relay call completed: the contact answered and was informed.
+  const dynVars = data.conversation_initiation_client_data?.dynamic_variables;
+  if (dynVars?.call_mode === "emergency_relay" && dynVars.buddy_call_id) {
+    const buddy = await getJSON<BuddyCall>(`buddy:${dynVars.buddy_call_id}`);
+    if (buddy) {
+      buddy.emergencyStatus = "notified";
+      await setJSON(`buddy:${buddy.id}`, buddy);
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   // Buddy Call transcript: detect codewords in the USER's lines only (the
   // agent speaks both codewords in its briefing) and schedule the call-back.
-  const buddyCallId = data.conversation_initiation_client_data?.dynamic_variables?.buddy_call_id;
+  const buddyCallId = dynVars?.buddy_call_id;
   if (buddyCallId) {
     const buddy = await getJSON<BuddyCall>(`buddy:${buddyCallId}`);
     if (buddy) {
@@ -124,7 +166,16 @@ export async function POST(request: NextRequest) {
         }));
       buddy.summary = data.analysis?.transcript_summary;
       const userTurns = buddy.turns.filter((t) => t.speaker !== "agent");
-      if (transcriptMentions(userTurns, buddy.codeword30)) {
+      // Emergency codeword takes precedence — said AND confirmed (twice).
+      if (
+        buddy.emergencyContact &&
+        countMentions(userTurns, buddy.emergencyContact.codeword) >= 2
+      ) {
+        buddy.emergencyTriggeredAt = new Date().toISOString();
+        buddy.status = "completed";
+        await setJSON(`buddy:${buddy.id}`, buddy);
+        await notifyEmergencyContact(buddy);
+      } else if (transcriptMentions(userTurns, buddy.codeword30)) {
         await rescheduleBuddy(buddy, 30);
       } else if (transcriptMentions(userTurns, buddy.codeword60)) {
         await rescheduleBuddy(buddy, 60);

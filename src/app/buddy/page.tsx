@@ -17,6 +17,10 @@ const EMPTY = {
   phoneNumber: "",
   callAt: "",
   scenario: "",
+  ecName: "",
+  ecPhone: "",
+  ecEmail: "",
+  ecCodeword: "",
 };
 
 export default function BuddyPage() {
@@ -52,6 +56,10 @@ export default function BuddyPage() {
             ...f,
             name: f.name || (u.bookingName ?? u.name ?? "").split(/\s+/)[0] || "",
             phoneNumber: f.phoneNumber || u.contactPhone || "",
+            ecName: f.ecName || u.emergencyContact?.name || "",
+            ecPhone: f.ecPhone || u.emergencyContact?.phone || "",
+            ecEmail: f.ecEmail || u.emergencyContact?.email || "",
+            ecCodeword: f.ecCodeword || u.emergencyContact?.codeword || "",
           }));
         }
       })
@@ -70,6 +78,14 @@ export default function BuddyPage() {
           phoneNumber: form.phoneNumber,
           callAt: form.callAt ? new Date(form.callAt).toISOString() : "",
           scenario: form.scenario || undefined,
+          emergencyContact: form.ecName.trim()
+            ? {
+                name: form.ecName,
+                phone: form.ecPhone || undefined,
+                email: form.ecEmail || undefined,
+                codeword: form.ecCodeword || undefined,
+              }
+            : undefined,
         }),
       });
       const data = await res.json();
@@ -137,6 +153,45 @@ export default function BuddyPage() {
           onChange={(e) => setForm({ ...form, scenario: e.target.value })}
           placeholder="e.g. first date at a wine bar; quarterly review with my manager"
         />
+
+        <details style={{ marginTop: "0.9rem" }}>
+          <summary className="sub" style={{ cursor: "pointer", marginBottom: 0 }}>
+            Emergency contact (optional)
+          </summary>
+          <p className="sub" style={{ margin: "0.6rem 0 0" }}>
+            A real-safety escape hatch. If you say the emergency codeword, M asks you to say
+            it once more to confirm, acknowledges, hangs up — then calls your emergency
+            contact (or emails them if no phone is given), identifying itself as an AI agent
+            and telling them this could be a real emergency.
+            {me?.user ? " Saved to your account for future buddy calls." : ""}
+          </p>
+          <label>Contact name</label>
+          <input
+            value={form.ecName}
+            onChange={(e) => setForm({ ...form, ecName: e.target.value })}
+            placeholder="Sarah Tan"
+          />
+          <label>Contact phone (E.164)</label>
+          <input
+            value={form.ecPhone}
+            onChange={(e) => setForm({ ...form, ecPhone: e.target.value })}
+            placeholder="+6598765432"
+          />
+          <label>Contact email</label>
+          <input
+            type="email"
+            value={form.ecEmail}
+            onChange={(e) => setForm({ ...form, ecEmail: e.target.value })}
+            placeholder="sarah@example.com"
+          />
+          <label>Emergency codeword (leave blank to auto-generate)</label>
+          <input
+            value={form.ecCodeword}
+            onChange={(e) => setForm({ ...form, ecCodeword: e.target.value })}
+            placeholder="e.g. redwood"
+          />
+        </details>
+
         <button onClick={create} disabled={busy}>
           {busy ? "Scheduling…" : "🤙 Schedule buddy call"}
         </button>
@@ -186,6 +241,23 @@ export default function BuddyPage() {
                 Say <strong>{b.codeword30}</strong> in conversation → call-back in 30 min ·{" "}
                 <strong>{b.codeword60}</strong> → 60 min. Or just start describing an
                 emergency — M plays along until you hang up.
+              </div>
+            )}
+            {b.emergencyContact && (b.status === "scheduled" || b.status === "calling") && (
+              <div className="meta" style={{ marginTop: "0.3rem" }}>
+                🚨 Real emergency: say <strong>{b.emergencyContact.codeword}</strong>, then
+                confirm it when M asks → M acknowledges, hangs up, and contacts{" "}
+                {b.emergencyContact.name}.
+              </div>
+            )}
+            {b.emergencyStatus && (
+              <div className="meta" style={{ marginTop: "0.3rem" }}>
+                🚨 Emergency contact {b.emergencyContact?.name}:{" "}
+                {b.emergencyStatus === "notified"
+                  ? "notified"
+                  : b.emergencyStatus === "calling"
+                    ? "being called…"
+                    : "could not be reached"}
               </div>
             )}
             {b.rescheduledFor && b.status === "scheduled" && (

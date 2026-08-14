@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getSessionUser } from "@/lib/auth";
-import { dispatchBuddyCall, pickCodewords } from "@/lib/buddy";
+import { dispatchBuddyCall, pickCodewords, pickEmergencyCodeword } from "@/lib/buddy";
 import { listJSON, setJSON } from "@/lib/store";
 import type { BuddyCall } from "@/lib/types";
 
@@ -45,6 +45,36 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await getSessionUser();
+
+    // Optional emergency contact: taken from the request, else from the
+    // signed-in user's stored contact. Needs a name plus a phone or email.
+    let emergencyContact: BuddyCall["emergencyContact"];
+    const rawEc = body.emergencyContact as Record<string, unknown> | undefined;
+    if (rawEc && typeof rawEc === "object" && String(rawEc.name ?? "").trim()) {
+      const name = String(rawEc.name).trim().slice(0, 60);
+      const phone =
+        typeof rawEc.phone === "string" && /^\+\d{7,15}$/.test(rawEc.phone.trim())
+          ? rawEc.phone.trim()
+          : undefined;
+      const email =
+        typeof rawEc.email === "string" && rawEc.email.includes("@")
+          ? rawEc.email.trim()
+          : undefined;
+      if (!phone && !email) {
+        return NextResponse.json(
+          { error: "Emergency contact needs a phone number (E.164) or an email address" },
+          { status: 400 },
+        );
+      }
+      const codeword =
+        typeof rawEc.codeword === "string" && rawEc.codeword.trim()
+          ? rawEc.codeword.trim().toLowerCase().slice(0, 30)
+          : pickEmergencyCodeword([]);
+      emergencyContact = { name, phone, email, codeword };
+    } else if (user?.emergencyContact) {
+      emergencyContact = user.emergencyContact;
+    }
+
     const buddy: BuddyCall = {
       id: randomUUID().slice(0, 8),
       createdAt: new Date().toISOString(),
@@ -56,11 +86,18 @@ export async function POST(request: NextRequest) {
         typeof body.scenario === "string" && body.scenario.trim()
           ? body.scenario.trim().slice(0, 500)
           : undefined,
-      ...pickCodewords(),
+      ...pickCodewords(emergencyContact ? [emergencyContact.codeword] : []),
+      emergencyContact,
       status: "scheduled",
       attempts: 0,
     };
     await setJSON(`buddy:${buddy.id}`, buddy);
+
+    // Remember the emergency contact on the account for next time.
+    if (user && emergencyContact && rawEc) {
+      user.emergencyContact = emergencyContact;
+      await setJSON(`user:${user.id}`, user);
+    }
 
     // A time that's already here (or within a minute) means "call now".
     if (at.getTime() <= Date.now() + 60_000) {

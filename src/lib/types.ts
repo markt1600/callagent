@@ -56,6 +56,13 @@ export interface UserProfile {
   contactCardPromptedAt?: string;
   /** Call-credit balance. Absent = untouched starting grant. */
   credits?: number;
+  /** Stored emergency contact — prefills Buddy Call's emergency section. */
+  emergencyContact?: {
+    name: string;
+    phone?: string;
+    email?: string;
+    codeword: string;
+  };
   createdAt: string;
 }
 
@@ -270,6 +277,23 @@ export interface BuddyCall {
   codeword30: string;
   /** Worked into conversation → call back in 60 minutes */
   codeword60: string;
+  /**
+   * Optional real-safety escape hatch: if the user says the emergency
+   * codeword and confirms it by repeating it, the agent acknowledges and
+   * hangs up, and the system calls (or emails) this contact.
+   */
+  emergencyContact?: {
+    name: string;
+    phone?: string;
+    email?: string;
+    codeword: string;
+  };
+  /** Set when the emergency codeword was said and confirmed on a call */
+  emergencyTriggeredAt?: string;
+  emergencyStatus?: "calling" | "notified" | "failed";
+  /** Conversation id of the emergency-relay call (webhook matching) */
+  emergencyConversationId?: string;
+  emergencyAttempts?: number;
   status: "scheduled" | "calling" | "completed" | "failed" | "cancelled";
   /** Dial attempts for the current scheduled time (max 5, 30s apart) */
   attempts: number;
