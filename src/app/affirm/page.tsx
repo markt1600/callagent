@@ -483,13 +483,7 @@ export default function AffirmPage() {
           onClick={create}
           disabled={busy || (form.messageMode === "recorded" && recState !== "recorded")}
         >
-          {busy
-            ? "Saving…"
-            : editingId
-              ? "💾 Save changes"
-              : form.callTiming === "now"
-                ? "💌 Place affirmation call"
-                : "💌 Schedule affirmation call"}
+          {busy ? "Saving…" : editingId ? "💾 Save changes" : "💌 Schedule affirmation call"}
         </button>
         <p className="sub" style={{ margin: "0.5rem 0 0" }}>
           Costs the same credits as any call to that destination.
