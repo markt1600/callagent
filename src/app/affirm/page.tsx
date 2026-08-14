@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import BottomNav from "../components/BottomNav";
+import PhoneInput from "../components/PhoneInput";
 import {
   destinationTimeLabel,
   formatInDestination,
@@ -355,11 +356,10 @@ export default function AffirmPage() {
           onChange={(e) => setForm({ ...form, recipientName: e.target.value })}
           placeholder="Emi"
         />
-        <label>Their phone number (E.164)</label>
-        <input
+        <label>Their phone number</label>
+        <PhoneInput
           value={form.phoneNumber}
-          onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
-          placeholder="+6591234567"
+          onChange={(v) => setForm({ ...form, phoneNumber: v })}
         />
         <label>When to call</label>
         <div className="row">

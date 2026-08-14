@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import GoogleSignIn from "../components/GoogleSignIn";
 import BottomNav from "../components/BottomNav";
+import PhoneInput from "../components/PhoneInput";
 import { countryForPrefix } from "@/lib/phone";
 import type { CreditTransaction, Friend, SavedRestaurant, UserProfile } from "@/lib/types";
 
@@ -321,11 +322,7 @@ export default function AccountPage() {
               placeholder="Taro Tanaka"
             />
             <label>Contact number (the number given to restaurants)</label>
-            <input
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
-              placeholder="+6591234567"
-            />
+            <PhoneInput value={contactPhone} onChange={setContactPhone} />
             <label>Bail out call language</label>
             <select value={buddyLanguage} onChange={(e) => setBuddyLanguage(e.target.value)}>
               <option value="">English (default)</option>
@@ -349,11 +346,11 @@ export default function AccountPage() {
                 onChange={(e) => setEc({ ...ec, name: e.target.value })}
                 placeholder="Sarah Tan"
               />
-              <label>Contact phone (E.164)</label>
-              <input
+              <label>Contact phone</label>
+              <PhoneInput
                 value={ec.phone}
-                onChange={(e) => setEc({ ...ec, phone: e.target.value })}
-                placeholder="+6598765432"
+                onChange={(v) => setEc({ ...ec, phone: v })}
+                placeholder="98765432"
               />
               <label>Contact email</label>
               <input
@@ -467,10 +464,12 @@ export default function AccountPage() {
                         value={edit.name}
                         onChange={(e) => setEdit({ ...edit, name: e.target.value })}
                       />
-                      <label>Phone number (E.164)</label>
-                      <input
+                      <label>Phone number</label>
+                      <PhoneInput
                         value={edit.phoneNumber}
-                        onChange={(e) => setEdit({ ...edit, phoneNumber: e.target.value })}
+                        onChange={(v) => setEdit({ ...edit, phoneNumber: v })}
+                        defaultCountry="+81"
+                        placeholder="312345678"
                       />
                       <div className="row">
                         <div style={{ flex: "1 1 90px", minWidth: 90 }}>
@@ -581,10 +580,10 @@ export default function AccountPage() {
                       value={friendEdit.name}
                       onChange={(e) => setFriendEdit({ ...friendEdit, name: e.target.value })}
                     />
-                    <label>Phone (E.164)</label>
-                    <input
+                    <label>Phone</label>
+                    <PhoneInput
                       value={friendEdit.phoneNumber}
-                      onChange={(e) => setFriendEdit({ ...friendEdit, phoneNumber: e.target.value })}
+                      onChange={(v) => setFriendEdit({ ...friendEdit, phoneNumber: v })}
                     />
                     <label>Preferred language</label>
                     <select
@@ -616,12 +615,6 @@ export default function AccountPage() {
                 placeholder="Name"
                 style={{ flex: "1 1 120px", minWidth: 120 }}
               />
-              <input
-                value={newFriend.phoneNumber}
-                onChange={(e) => setNewFriend({ ...newFriend, phoneNumber: e.target.value })}
-                placeholder="+6591234567"
-                style={{ flex: "1 1 140px", minWidth: 140 }}
-              />
               <select
                 value={newFriend.language}
                 onChange={(e) => setNewFriend({ ...newFriend, language: e.target.value })}
@@ -634,6 +627,12 @@ export default function AccountPage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div style={{ marginTop: "0.4rem" }}>
+              <PhoneInput
+                value={newFriend.phoneNumber}
+                onChange={(v) => setNewFriend({ ...newFriend, phoneNumber: v })}
+              />
             </div>
             <button className="secondary" onClick={addFriend}>
               + Add friend

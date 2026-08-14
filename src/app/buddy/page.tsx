@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import BottomNav from "../components/BottomNav";
+import PhoneInput from "../components/PhoneInput";
 import {
   destinationTimeLabel,
   formatInDestination,
@@ -202,11 +203,10 @@ export default function BuddyPage() {
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           placeholder="Mark"
         />
-        <label>Your phone number (E.164)</label>
-        <input
+        <label>Your phone number</label>
+        <PhoneInput
           value={form.phoneNumber}
-          onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
-          placeholder="+6591234567"
+          onChange={(v) => setForm({ ...form, phoneNumber: v })}
         />
         <label>Call language (M switches if you answer in another one)</label>
         <select
@@ -259,11 +259,11 @@ export default function BuddyPage() {
             onChange={(e) => setForm({ ...form, ecName: e.target.value })}
             placeholder="Sarah Tan"
           />
-          <label>Contact phone (E.164)</label>
-          <input
+          <label>Contact phone</label>
+          <PhoneInput
             value={form.ecPhone}
-            onChange={(e) => setForm({ ...form, ecPhone: e.target.value })}
-            placeholder="+6598765432"
+            onChange={(v) => setForm({ ...form, ecPhone: v })}
+            placeholder="98765432"
           />
           <label>Contact email</label>
           <input

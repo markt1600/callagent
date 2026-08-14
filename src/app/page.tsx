@@ -5,6 +5,7 @@ import { shiftHHMM } from "@/lib/timeUtils";
 import GoogleSignIn from "./components/GoogleSignIn";
 import AgentContactPrompt from "./components/AgentContactPrompt";
 import BottomNav from "./components/BottomNav";
+import PhoneInput from "./components/PhoneInput";
 import type {
   CallSession,
   ReservationPreferences,
@@ -592,11 +593,12 @@ export default function Dashboard() {
               onChange={(e) => setForm({ ...form, restaurantName: e.target.value })}
               placeholder="鮨 さいとう"
             />
-            <label>Phone number (E.164)</label>
-            <input
+            <label>Phone number</label>
+            <PhoneInput
               value={form.phoneNumber}
-              onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
-              placeholder="+81312345678"
+              onChange={(v) => setForm({ ...form, phoneNumber: v })}
+              defaultCountry="+81"
+              placeholder="312345678"
             />
             <div className="row">
               <div style={{ flex: "1 1 90px", minWidth: 90 }}>
@@ -701,10 +703,9 @@ export default function Dashboard() {
               placeholder="Taro Tanaka"
             />
             <label>Guest contact number (the number given to the restaurant)</label>
-            <input
+            <PhoneInput
               value={form.contactPhone}
-              onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
-              placeholder="+6591234567"
+              onChange={(v) => setForm({ ...form, contactPhone: v })}
             />
             <label>Email confirmation to (optional)</label>
             <input
