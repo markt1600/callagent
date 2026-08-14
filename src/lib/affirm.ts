@@ -10,6 +10,7 @@
 //   then: the next day at the originally scheduled wall-clock time,
 //   repeating the same cycle once. After that, failed.
 
+import { anthropic, assertNotRefusal } from "./claude";
 import { config, requireEnv } from "./config";
 import { chargeForCall } from "./credits";
 import { tzOffsetHours } from "./callWindow";
@@ -212,6 +213,40 @@ const AHBENG_FIRST_MESSAGES: Record<"en" | "zh", string> = {
 
 function fill(template: string, a: AffirmationCall): string {
   return template.replaceAll("{caller}", a.recipientName).replaceAll("{requester}", a.requesterName);
+}
+
+const KIND_BRIEFS: Record<NonNullable<AffirmationCall["messageKind"]>, string> = {
+  joke: "a short, genuinely funny joke to brighten their day — something that lands well spoken aloud on a phone call (quick setup, clean punchline)",
+  compliment:
+    "a heartfelt, uplifting compliment — warm and sincere, celebrating them as a person",
+  insult:
+    "a PLAYFUL, good-natured roast — obviously affectionate teasing between close friends. Clever and light; absolutely no profanity, nothing cruel, and nothing about appearance, body, intelligence, or anything genuinely hurtful",
+};
+
+/** Generate the message with Claude when the user picks joke/compliment/insult. */
+export async function generateAffirmationMessage(
+  kind: NonNullable<AffirmationCall["messageKind"]>,
+  language: BuddyLanguage,
+  recipientName: string,
+  requesterName: string,
+): Promise<string> {
+  const client = anthropic();
+  const response = await client.messages.create({
+    model: config.anthropic.fastModel,
+    max_tokens: 300,
+    messages: [
+      {
+        role: "user",
+        content: `Write ${KIND_BRIEFS[kind]}. It will be spoken over the phone to ${recipientName} on behalf of ${requesterName}, in ${LANGUAGE_NAMES[language] ?? "English"}. 1-3 sentences, natural spoken register, addressed to ${recipientName}. Do NOT invent personal facts, shared memories, or specific events — ${requesterName} and ${recipientName} know each other, you don't. Output ONLY the message text, nothing else.`,
+      },
+    ],
+  });
+  assertNotRefusal(response);
+  const block = response.content.find((b) => b.type === "text");
+  if (!block || block.type !== "text" || !block.text.trim()) {
+    throw new Error("Message generation returned no text");
+  }
+  return block.text.trim().slice(0, 1500);
 }
 
 /** Dial the affirmation call now. Charges credits on the very first attempt. */

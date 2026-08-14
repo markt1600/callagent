@@ -351,6 +351,8 @@ export interface AffirmationCall {
   longChat?: boolean;
   /** The message to deliver (may be empty when a recording is attached) */
   message: string;
+  /** Set when the message was AI-generated instead of typed */
+  messageKind?: "joke" | "compliment" | "insult";
   /** True = word-for-word delivery; false = the AI may warmly embellish */
   literal: boolean;
   /**

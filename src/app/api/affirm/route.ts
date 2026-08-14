@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getSessionUser } from "@/lib/auth";
-import { dispatchAffirmationCall } from "@/lib/affirm";
+import { dispatchAffirmationCall, generateAffirmationMessage } from "@/lib/affirm";
 import { destinationWallClockToUtc } from "@/lib/phone";
 import { getJSON, listJSON, setJSON } from "@/lib/store";
 import type { AffirmationCall, BuddyLanguage, Friend } from "@/lib/types";
@@ -58,9 +58,12 @@ export async function POST(request: NextRequest) {
       }
       recordingUrl = url;
     }
-    if (!recordingUrl && (!body.message || !String(body.message).trim())) {
+    const messageKind = (["joke", "compliment", "insult"] as const).find(
+      (k) => k === body.messageKind,
+    );
+    if (!recordingUrl && !messageKind && (!body.message || !String(body.message).trim())) {
       return NextResponse.json(
-        { error: "A message to deliver (or a voice recording) is required" },
+        { error: "A message to deliver (a typed text, an AI-generated pick, or a voice recording) is required" },
         { status: 400 },
       );
     }
@@ -109,6 +112,18 @@ export async function POST(request: NextRequest) {
     };
     // Ah Beng only speaks English and Chinese.
     if (call.persona === "ahbeng" && call.language !== "zh") call.language = "en";
+
+    // AI-generated message: written now (in the call's language) so the user
+    // can see exactly what will be delivered on the card.
+    if (messageKind && !recordingUrl && !call.message) {
+      call.messageKind = messageKind;
+      call.message = await generateAffirmationMessage(
+        messageKind,
+        call.language,
+        call.recipientName,
+        call.requesterName,
+      );
+    }
     await setJSON(`affirm:${call.id}`, call);
 
     // Remember the recipient as a friend on the account (keyed by number).

@@ -80,7 +80,8 @@ const EMPTY = {
   language: "en",
   persona: "standard",
   longChat: false,
-  messageMode: "typed" as "typed" | "recorded",
+  messageMode: "typed" as "typed" | "generated" | "recorded",
+  messageKind: "joke",
   recurrence: "",
   callTiming: "now" as "now" | "scheduled",
 };
@@ -274,11 +275,12 @@ export default function AffirmPage() {
           callNow: !editingId && form.callTiming === "now",
           callAt: form.callTiming === "scheduled" ? form.callAt : undefined,
           message: form.messageMode === "typed" ? form.message : "",
+          messageKind: form.messageMode === "generated" ? form.messageKind : undefined,
           requesterName: form.requesterName,
           literal: form.delivery === "literal",
           language: form.language,
           persona: form.persona,
-          longChat: form.messageMode === "typed" && form.longChat,
+          longChat: form.messageMode !== "recorded" && form.longChat,
           recurrence: form.recurrence || undefined,
           recordingUrl,
         }),
@@ -413,7 +415,7 @@ export default function AffirmPage() {
           onChange={(e) => setForm({ ...form, requesterName: e.target.value })}
           placeholder="Mark"
         />
-        {form.messageMode === "typed" && (
+        {form.messageMode !== "recorded" && (
           <>
             <label>Voice</label>
             <select
@@ -441,7 +443,7 @@ export default function AffirmPage() {
           value={form.language}
           onChange={(e) => setForm({ ...form, language: e.target.value })}
         >
-          {(form.persona === "ahbeng" && form.messageMode === "typed"
+          {(form.persona === "ahbeng" && form.messageMode !== "recorded"
             ? LANGUAGE_OPTIONS.filter((o) => o.value === "en" || o.value === "zh")
             : LANGUAGE_OPTIONS
           ).map((o) => (
@@ -454,13 +456,34 @@ export default function AffirmPage() {
         <select
           value={form.messageMode}
           onChange={(e) =>
-            setForm({ ...form, messageMode: e.target.value as "typed" | "recorded" })
+            setForm({
+              ...form,
+              messageMode: e.target.value as "typed" | "generated" | "recorded",
+            })
           }
         >
           <option value="typed">Type it — the AI voice delivers it</option>
+          <option value="generated">AI-generated — joke, compliment, or roast</option>
           <option value="recorded">Record it in my own voice — replayed on the call</option>
         </select>
-        {form.messageMode === "typed" ? (
+        {form.messageMode === "generated" && (
+          <>
+            <label>What should the AI write?</label>
+            <select
+              value={form.messageKind}
+              onChange={(e) => setForm({ ...form, messageKind: e.target.value })}
+            >
+              <option value="joke">A joke — brighten their day</option>
+              <option value="compliment">A compliment — warm and sincere</option>
+              <option value="insult">A playful insult — affectionate roast</option>
+            </select>
+            <p className="sub" style={{ margin: "0.3rem 0 0" }}>
+              Written at scheduling time in the call&apos;s language — the exact text shows
+              on the card below, and you can edit it before the call goes out.
+            </p>
+          </>
+        )}
+        {form.messageMode === "typed" && (
           <>
             <label>The message to deliver</label>
             <textarea
@@ -468,6 +491,10 @@ export default function AffirmPage() {
               onChange={(e) => setForm({ ...form, message: e.target.value })}
               placeholder="e.g. I'm so proud of how you handled this week. Dinner's on me on Friday."
             />
+          </>
+        )}
+        {form.messageMode !== "recorded" && (
+          <>
             <label>Delivery</label>
             <select
               value={form.delivery}
@@ -485,7 +512,8 @@ export default function AffirmPage() {
               Longer call — after the message, keep chatting until they hang up
             </label>
           </>
-        ) : (
+        )}
+        {form.messageMode === "recorded" && (
           <div style={{ marginTop: "0.6rem" }}>
             {recState === "idle" && (
               <button type="button" className="secondary" onClick={startRecording}>
@@ -543,6 +571,9 @@ export default function AffirmPage() {
                 <div className="meta">
                   To {a.recipientName} · {a.phoneNumber} · from {a.requesterName} ·{" "}
                   {a.recordingUrl ? "your voice" : a.literal ? "word-for-word" : "embellished"}
+                  {!a.recordingUrl && a.messageKind
+                    ? ` · AI ${a.messageKind === "insult" ? "roast" : a.messageKind}`
+                    : ""}
                   {!a.recordingUrl && a.persona === "ahbeng" ? " · Ah Beng 🕶️" : ""}
                   {!a.recordingUrl && a.longChat ? " · stays to chat" : ""}
                   {a.recurrence
