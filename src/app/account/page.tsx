@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import GoogleSignIn from "../components/GoogleSignIn";
+import BottomNav from "../components/BottomNav";
 import type { SavedRestaurant, UserProfile } from "@/lib/types";
 
 interface MeResponse {
@@ -77,6 +78,7 @@ export default function AccountPage() {
 
   async function signOut() {
     await fetch("/api/auth/logout", { method: "POST" });
+    localStorage.removeItem("guestMode");
     window.location.href = "/";
   }
 
@@ -328,6 +330,8 @@ export default function AccountPage() {
           </a>
         </div>
       )}
+
+      <BottomNav active="account" isAdmin={me?.isAdmin} />
     </main>
   );
 }

@@ -55,6 +55,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#f5efe2",
+  // Required for env(safe-area-inset-bottom) to be non-zero on iOS — without
+  // it the fixed bottom nav floats over the home-indicator area in Safari.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

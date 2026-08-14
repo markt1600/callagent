@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { shiftHHMM } from "@/lib/timeUtils";
 import GoogleSignIn from "./components/GoogleSignIn";
 import AgentContactPrompt from "./components/AgentContactPrompt";
+import BottomNav from "./components/BottomNav";
 import type {
   CallSession,
   ReservationPreferences,
@@ -85,6 +86,9 @@ export default function Dashboard() {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [restaurants, setRestaurants] = useState<SavedRestaurant[]>([]);
   const [showContactPrompt, setShowContactPrompt] = useState(false);
+  // Entry gate: sign in with Google or pick guest mode before the app shows.
+  // Returning sessions (cookie) and returning guests (localStorage) skip it.
+  const [gate, setGate] = useState<"loading" | "gate" | "app">("loading");
 
   const user = me?.user ?? null;
 
@@ -138,8 +142,8 @@ export default function Dashboard() {
     }
   }, []);
 
-  // Session bootstrap: who's signed in, prefill their details, and decide
-  // whether to show the one-time "save Agent M as a contact" prompt.
+  // Session bootstrap: who's signed in, gate or app, prefill their details,
+  // and decide whether to show the one-time "save Agent M" contact prompt.
   useEffect(() => {
     (async () => {
       try {
@@ -147,6 +151,7 @@ export default function Dashboard() {
         setMe(data);
         if (data.user) {
           const u = data.user;
+          setGate("app");
           setForm((f) => ({
             ...f,
             callerName: f.callerName || u.bookingName || "",
@@ -155,17 +160,38 @@ export default function Dashboard() {
           }));
           loadRestaurants();
           if (data.agentNumber && !u.contactCardPromptedAt) setShowContactPrompt(true);
-        } else if (data.agentNumber && !localStorage.getItem("agentmContactPrompted")) {
-          // Guest mode: prompt once per browser.
-          setShowContactPrompt(true);
+        } else if (localStorage.getItem("guestMode")) {
+          // Returning guest: straight to the app.
+          setGate("app");
+          if (data.agentNumber && !localStorage.getItem("agentmContactPrompted")) {
+            setShowContactPrompt(true);
+          }
+        } else {
+          setGate("gate");
         }
       } catch {
-        /* transient */
+        // Can't reach /api/me — let the app render rather than a dead gate.
+        setGate("app");
       }
     })();
   }, [loadRestaurants]);
 
+  function enterGuestMode() {
+    localStorage.setItem("guestMode", "1");
+    setGate("app");
+    if (me?.agentNumber && !localStorage.getItem("agentmContactPrompted")) {
+      setShowContactPrompt(true);
+    }
+  }
+
+  async function signOut() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    localStorage.removeItem("guestMode");
+    window.location.reload();
+  }
+
   function onSignedIn(u: UserProfile) {
+    setGate("app");
     setMe((m) => (m ? { ...m, user: u } : m));
     setForm((f) => ({
       ...f,
@@ -176,6 +202,11 @@ export default function Dashboard() {
     setSelectedId(null);
     refresh();
     loadRestaurants();
+    // Re-fetch the session snapshot (isAdmin, credits) now that we're signed in.
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then(setMe)
+      .catch(() => {});
     if (me?.agentNumber && !u.contactCardPromptedAt) setShowContactPrompt(true);
   }
 
@@ -371,6 +402,50 @@ export default function Dashboard() {
     }
   }
 
+  // ── Entry gate: sign in or choose guest mode before the app shows ────────
+  if (gate !== "app") {
+    return (
+      <main style={{ maxWidth: 560 }}>
+        <div className="eyebrow">marktan.ai · phone concierge</div>
+        <h1>
+          Agentic <em>Reservations</em>
+        </h1>
+        <p className="sub">
+          AI reservation agent for restaurants in Japan and Singapore — it calls the
+          restaurant and books your table.
+        </p>
+        <div className="panel">
+          {gate === "loading" ? (
+            <p className="sub">Loading…</p>
+          ) : (
+            <>
+              <h2>Get started</h2>
+              <p className="sub">
+                Sign in with Google to keep your reservations, restaurants, and
+                preferences on your account — or continue as a guest.
+              </p>
+              {me?.authConfigured && me.googleClientId && (
+                <div style={{ margin: "0.9rem 0 0.4rem" }}>
+                  <GoogleSignIn
+                    clientId={me.googleClientId}
+                    onSignedIn={onSignedIn}
+                    onError={(msg) => setError(msg)}
+                  />
+                </div>
+              )}
+              <p className="sub" style={{ marginBottom: 0 }}>
+                <a className="admin-link" onClick={enterGuestMode} style={{ cursor: "pointer" }}>
+                  Continue as guest →
+                </a>
+              </p>
+              {error && <p className="error">{error}</p>}
+            </>
+          )}
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main>
       <div className="eyebrow">marktan.ai · phone concierge</div>
@@ -394,27 +469,22 @@ export default function Dashboard() {
           <a className="active">Reservations</a>
           <a href="/account">Account</a>
         </nav>
-        {me &&
-          (user ? (
-            <a href="/account" className="userchip" title="Account">
-              {user.bookingName ?? user.name ?? user.email}
-            </a>
-          ) : me.authConfigured && me.googleClientId ? (
-            <span className="row" style={{ alignItems: "center", gap: "0.6rem" }}>
-              <GoogleSignIn
-                clientId={me.googleClientId}
-                onSignedIn={onSignedIn}
-                onError={(msg) => setError(msg)}
-              />
+        {me && (
+          <span className="row" style={{ alignItems: "center", gap: "0.6rem", flexWrap: "nowrap" }}>
+            {user ? (
+              <a href="/account" className="userchip" title="Account">
+                {user.bookingName ?? user.name ?? user.email}
+              </a>
+            ) : (
               <span className="sub" style={{ margin: 0 }}>
-                or continue as guest
+                Guest mode
               </span>
-            </span>
-          ) : (
-            <span className="sub" style={{ margin: 0 }}>
-              Guest mode
-            </span>
-          ))}
+            )}
+            <a className="admin-link" onClick={signOut} style={{ cursor: "pointer" }}>
+              {user ? "Sign out" : "Sign in"}
+            </a>
+          </span>
+        )}
       </div>
 
       <div className="grid">
@@ -1022,6 +1092,8 @@ export default function Dashboard() {
       {showContactPrompt && me?.agentNumber && (
         <AgentContactPrompt agentNumber={me.agentNumber} onDismiss={dismissContactPrompt} />
       )}
+
+      <BottomNav active="reservations" isAdmin={me?.isAdmin} />
     </main>
   );
 }

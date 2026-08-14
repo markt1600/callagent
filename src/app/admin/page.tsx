@@ -4,6 +4,7 @@
 // The PIN is verified server-side on every delete (x-admin-pin header).
 
 import { useCallback, useEffect, useState } from "react";
+import BottomNav from "../components/BottomNav";
 import type { LibraryEntry, ReservationRequest } from "@/lib/types";
 
 interface LibraryStats {
@@ -339,6 +340,8 @@ export default function AdminPage() {
           )}
         </div>
       )}
+
+      <BottomNav active="admin" isAdmin={access === "allowed"} />
     </main>
   );
 }
