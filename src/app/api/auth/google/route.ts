@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authConfigured, setSessionCookie, verifyGoogleCredential } from "@/lib/auth";
+import { recordWelcomeGrant } from "@/lib/credits";
 import { getJSON, setJSON } from "@/lib/store";
 import type { UserProfile } from "@/lib/types";
 
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
       user.picture = identity.picture;
     }
     await setJSON(key, user);
+    if (firstLogin) await recordWelcomeGrant(user.id);
     await setSessionCookie(user.id);
     return NextResponse.json({ user, firstLogin });
   } catch (err) {

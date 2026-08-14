@@ -80,6 +80,13 @@ export function destinationWallClockToUtc(wallClock: string, phoneNumber: string
   return new Date(asUtc - tzOffsetHours(phoneNumber) * HOUR_MS);
 }
 
+/** ISO instant → the destination's wall-clock "YYYY-MM-DDTHH:mm" (for form inputs). */
+export function isoToDestinationWallClock(iso: string, phoneNumber: string): string {
+  const local = new Date(new Date(iso).getTime() + tzOffsetHours(phoneNumber) * HOUR_MS);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())}T${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`;
+}
+
 /** Format an ISO instant as wall-clock time in the number's country, labeled. */
 export function formatInDestination(iso: string, phoneNumber: string): string {
   const local = new Date(new Date(iso).getTime() + tzOffsetHours(phoneNumber) * HOUR_MS);

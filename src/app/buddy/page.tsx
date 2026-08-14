@@ -5,7 +5,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import BottomNav from "../components/BottomNav";
-import { destinationTimeLabel, formatInDestination } from "@/lib/phone";
+import {
+  destinationTimeLabel,
+  formatInDestination,
+  isoToDestinationWallClock,
+} from "@/lib/phone";
 import type { BuddyCall, UserProfile } from "@/lib/types";
 
 interface MeResponse {
@@ -32,6 +36,9 @@ const LANGUAGE_OPTIONS = [
   { value: "ja", label: "Japanese" },
   { value: "th", label: "Thai" },
   { value: "vi", label: "Vietnamese" },
+  { value: "de", label: "German" },
+  { value: "ko", label: "Korean" },
+  { value: "fr", label: "French" },
 ];
 
 export default function BuddyPage() {
@@ -40,6 +47,30 @@ export default function BuddyPage() {
   const [calls, setCalls] = useState<BuddyCall[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  /** Load a pending call into the form for editing. */
+  function startEdit(b: BuddyCall) {
+    setEditingId(b.id);
+    setForm({
+      name: b.name,
+      phoneNumber: b.phoneNumber,
+      language: b.language ?? "en",
+      callAt: isoToDestinationWallClock(b.callAt, b.phoneNumber),
+      scenario: b.scenario ?? "",
+      ecName: b.emergencyContact?.name ?? "",
+      ecPhone: b.emergencyContact?.phone ?? "",
+      ecEmail: b.emergencyContact?.email ?? "",
+      ecCodeword: b.emergencyContact?.codeword ?? "",
+      ecLanguage: b.emergencyContact?.language ?? "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm((f) => ({ ...EMPTY, name: f.name, phoneNumber: f.phoneNumber }));
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -83,8 +114,8 @@ export default function BuddyPage() {
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch("/api/buddy", {
-        method: "POST",
+      const res = await fetch(editingId ? `/api/buddy/${editingId}` : "/api/buddy", {
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
@@ -107,6 +138,7 @@ export default function BuddyPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+      setEditingId(null);
       setForm((f) => ({ ...f, callAt: "", scenario: "" }));
       await refresh();
     } catch (e) {
@@ -154,7 +186,16 @@ export default function BuddyPage() {
       </p>
 
       <div className="panel">
-        <h2>Schedule a bail out call</h2>
+        <h2>{editingId ? "Edit bail out call" : "Schedule a bail out call"}</h2>
+        {editingId && (
+          <p className="sub" style={{ marginTop: 0 }}>
+            Editing the pending call — save below, or{" "}
+            <a className="admin-link" onClick={cancelEdit} style={{ cursor: "pointer" }}>
+              cancel editing
+            </a>
+            .
+          </p>
+        )}
         <label>Your first name (what M calls you)</label>
         <input
           value={form.name}
@@ -252,7 +293,7 @@ export default function BuddyPage() {
         </details>
 
         <button onClick={create} disabled={busy}>
-          {busy ? "Scheduling…" : "🤙 Schedule bail out call"}
+          {busy ? "Saving…" : editingId ? "💾 Save changes" : "🤙 Schedule bail out call"}
         </button>
         <p className="sub" style={{ margin: "0.5rem 0 0" }}>
           Costs the same credits as any call to that destination. If the call doesn&apos;t
@@ -276,6 +317,16 @@ export default function BuddyPage() {
                 </div>
               </div>
               <span className="row" style={{ flexShrink: 0, gap: "0.2rem" }}>
+                {b.status === "scheduled" && (
+                  <button
+                    className="delete-btn"
+                    title="Edit this call"
+                    onClick={() => startEdit(b)}
+                    style={{ fontSize: "1rem" }}
+                  >
+                    ✎
+                  </button>
+                )}
                 {(b.status === "scheduled" || b.status === "calling") && (
                   <button
                     className="secondary"

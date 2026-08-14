@@ -1,6 +1,6 @@
 // Core domain types shared across the app.
 
-export type SupportedLanguage = "ja" | "en" | "zh";
+export type SupportedLanguage = "ja" | "en" | "zh" | "de" | "ko" | "fr";
 
 /**
  * Buddy Call languages: broader than the reservation stack (which needs
@@ -373,6 +373,17 @@ export interface AffirmationCall {
   turns?: CallTurn[];
   summary?: string;
   error?: string;
+}
+
+/** One entry in a user's credit ledger (deductions and additions). */
+export interface CreditTransaction {
+  id: string;
+  userId: string;
+  at: string;
+  /** Negative = deduction, positive = credits added */
+  delta: number;
+  balanceAfter: number;
+  description: string;
 }
 
 /** Persistent phrase-library entry: one synthesized audio file, reused forever. */

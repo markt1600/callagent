@@ -81,6 +81,27 @@ const LANGUAGE_STYLE = {
     holdExample: `("请稍等一下。")`,
     utteranceExample: `(e.g. ask_party_size → 「几位？」「请问几位用餐？」, keywords 「几位」「人数」)`,
   },
+  de: {
+    name: "German",
+    styleGuide: `use polite German (Sie-Form) appropriate for phoning a restaurant; write numbers, dates and times the way they are SPOKEN, e.g. „ein Tisch für zwei Personen am Mittwoch, dem zwanzigsten August, um neunzehn Uhr"`,
+    repeatExample: `("Entschuldigung, könnten Sie das bitte wiederholen?")`,
+    holdExample: `("Einen Moment, bitte.")`,
+    utteranceExample: `(e.g. ask_party_size → „Für wie viele Personen?", keywords „wie viele", „Personen")`,
+  },
+  ko: {
+    name: "Korean",
+    styleGuide: `use polite Korean (합쇼체/해요체 as appropriate for calling a restaurant); write numbers, dates and times the way they are SPOKEN, e.g. 「8월 20일 수요일 저녁 7시, 두 명이요」`,
+    repeatExample: `("죄송합니다, 다시 한 번 말씀해 주시겠어요?")`,
+    holdExample: `("잠시만요.")`,
+    utteranceExample: `(e.g. ask_party_size → 「몇 분이세요?」, keywords 「몇 분」「인원」)`,
+  },
+  fr: {
+    name: "French",
+    styleGuide: `use polite French (vouvoiement) appropriate for phoning a restaurant; write numbers, dates and times the way they are SPOKEN, e.g. « une table pour deux personnes le mercredi vingt août à dix-neuf heures »`,
+    repeatExample: `("Pardon, pourriez-vous répéter, s'il vous plaît ?")`,
+    holdExample: `("Un instant, s'il vous plaît.")`,
+    utteranceExample: `(e.g. ask_party_size → « Pour combien de personnes ? », keywords « combien », « personnes »)`,
+  },
 } as const;
 
 function buildPrompt(req: ReservationRequest, language: ReservationRequest["language"]): string {

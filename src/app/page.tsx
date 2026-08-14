@@ -22,6 +22,13 @@ interface MeResponse {
   creditCosts: Record<string, number>;
 }
 
+/** ISO instant → browser-local "YYYY-MM-DDTHH:mm" for datetime-local inputs. */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /** Map stored preferences back onto the form's field shapes. */
 function preferencesToForm(p?: ReservationPreferences) {
   return {
@@ -86,6 +93,7 @@ export default function Dashboard() {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [restaurants, setRestaurants] = useState<SavedRestaurant[]>([]);
   const [showContactPrompt, setShowContactPrompt] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   // Entry gate: sign in with Google or pick guest mode before the app shows.
   // Returning sessions (cookie) and returning guests (localStorage) skip it.
   const [gate, setGate] = useState<"loading" | "gate" | "app">("loading");
@@ -228,6 +236,35 @@ export default function Dashboard() {
     setRestaurants((list) => list.filter((r) => r.id !== id));
   }
 
+  /** Load a pending (scheduled) reservation into the form for editing. */
+  function startEditReservation(r: ReservationRequest) {
+    setEditingId(r.id);
+    setForm({
+      ...EMPTY_FORM,
+      restaurantName: r.restaurantName,
+      phoneNumber: r.phoneNumber,
+      partySize: r.partySize,
+      date: r.date,
+      time: r.time,
+      timeWindowStart: r.timeWindowStart ?? "",
+      timeWindowEnd: r.timeWindowEnd ?? "",
+      language: r.language,
+      callerName: r.callerName,
+      contactPhone: r.contactPhone ?? "",
+      notifyEmail: r.notifyEmail ?? "",
+      specialRequests: r.specialRequests ?? "",
+      ...preferencesToForm(r.preferences),
+      callTiming: "scheduled",
+      callAt: r.callAt ? toLocalInput(r.callAt) : "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEditReservation() {
+    setEditingId(null);
+    setForm({ ...EMPTY_FORM, callerName: form.callerName, contactPhone: form.contactPhone, notifyEmail: form.notifyEmail });
+  }
+
   /** Prefill the form from a saved restaurant — only date and time remain. */
   function bookAgain(r: SavedRestaurant) {
     setForm({
@@ -298,6 +335,7 @@ export default function Dashboard() {
       if (callTiming === "scheduled" && callAt) {
         body.callAt = new Date(callAt).toISOString();
       }
+      if (editingId && callTiming === "now") body.callNow = true;
       body.preferences = {
         seating: seating || undefined,
         minimumSpendOk: minimumSpend === "" ? undefined : minimumSpend === "yes",
@@ -314,8 +352,21 @@ export default function Dashboard() {
         accessibility,
         askCorkage,
       };
-      const data = await api("/api/reservations", body);
+      const data = editingId
+        ? await (async () => {
+            const res = await fetch(`/api/reservations/${editingId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok)
+              throw new Error((d as { error?: string }).error || `Save failed (${res.status})`);
+            return d as Record<string, unknown>;
+          })()
+        : await api("/api/reservations", body);
       const reservation = data.reservation as ReservationRequest;
+      setEditingId(null);
       setSelectedId(reservation.id);
       if (reservation.error) setError(reservation.error);
       await refresh();
@@ -492,7 +543,20 @@ export default function Dashboard() {
       <div className="grid">
         <div>
           <div className="panel">
-            <h2>New reservation request</h2>
+            <h2>{editingId ? "Edit reservation request" : "New reservation request"}</h2>
+            {editingId && (
+              <p className="sub" style={{ marginTop: 0 }}>
+                Editing the pending reservation — save below, or{" "}
+                <a
+                  className="admin-link"
+                  onClick={cancelEditReservation}
+                  style={{ cursor: "pointer" }}
+                >
+                  cancel editing
+                </a>
+                .
+              </p>
+            )}
             <label>Restaurant name</label>
             <input
               value={form.restaurantName}
@@ -591,6 +655,9 @@ export default function Dashboard() {
               <option value="en">English</option>
               <option value="ja">Japanese</option>
               <option value="zh">Mandarin</option>
+              <option value="de">German</option>
+              <option value="ko">Korean</option>
+              <option value="fr">French</option>
             </select>
             {form.language === "en" && form.phoneNumber.startsWith("+65") && (
               <p className="sub" style={{ margin: "0.3rem 0 0" }}>
@@ -771,12 +838,16 @@ export default function Dashboard() {
             </div>
             <button onClick={createReservation} disabled={busy !== null}>
               {busy === "create"
-                ? form.callTiming === "now"
-                  ? "Placing call…"
-                  : "Scheduling…"
-                : form.callTiming === "now"
-                  ? "📞 Make reservation call"
-                  : "Schedule reservation call"}
+                ? editingId
+                  ? "Saving…"
+                  : form.callTiming === "now"
+                    ? "Placing call…"
+                    : "Scheduling…"
+                : editingId
+                  ? "💾 Save changes"
+                  : form.callTiming === "now"
+                    ? "📞 Make reservation call"
+                    : "Schedule reservation call"}
             </button>
             {error && <p className="error">{error}</p>}
           </div>
@@ -899,6 +970,16 @@ export default function Dashboard() {
                   </p>
                 )}
                 <div className="row">
+                  {selected.status === "scheduled" && (
+                    <button
+                      className="secondary"
+                      onClick={() => startEditReservation(selected)}
+                      disabled={busy !== null}
+                      title="Edit the details before the call is placed"
+                    >
+                      ✎ Edit
+                    </button>
+                  )}
                   <button
                     onClick={() => placeCall(selected.id, "agent")}
                     disabled={busy !== null || selected.status === "calling"}

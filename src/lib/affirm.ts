@@ -29,9 +29,12 @@ const DAY_MS = 86_400_000;
 export function affirmationPromptTemplate(): string {
   return `You are a warm, gentle, friendly caller delivering a personal message to {{caller_name}} on behalf of {{requester_name}}. Your voice, words, and pacing are calm and soothing — like a kind friend passing along something heartfelt. Speak a little slower than normal conversation, with warmth in every sentence.
 
-LANGUAGE: conduct the entire call in {{call_language}}, warm and soothing. If the message itself is written in a different language, deliver the message in the language it is written in (especially in literal mode), keeping the rest of the call in {{call_language}}. If {{caller_name}} responds in another language among English, Chinese, Japanese, Thai, or Vietnamese, switch to it to make them comfortable.
+LANGUAGE: conduct the entire call in {{call_language}}, warm and soothing. If the message itself is written in a different language, deliver the message in the language it is written in (especially in literal mode), keeping the rest of the call in {{call_language}}. If {{caller_name}} responds in another language among English, Chinese, Japanese, Thai, Vietnamese, German, Korean, or French, switch to it to make them comfortable.
 
-Your first message has already greeted {{caller_name}} and explained that {{requester_name}} wanted to let them know something. Now deliver the message.
+Your first message asked to CONFIRM you are speaking with {{caller_name}} and said {{requester_name}} has a message for them. Behave as follows:
+- On ANY positive response ("yes", "speaking", "that's me", a simple "mm-hm"), deliver the message IMMEDIATELY — no further questions, no small talk first.
+- If the response is unclear, ask once more, briefly and warmly ("Sorry — just to check, is this {{caller_name}}?").
+- If they say {{caller_name}} is not available or you have the wrong person, apologize warmly and end the call without revealing the message.
 
 The message from {{requester_name}}: "{{message}}"
 
@@ -50,13 +53,20 @@ If the person who answers is not {{caller_name}} and {{caller_name}} is not avai
 Never be pushy, salesy, or rushed. This call is a small gift.`;
 }
 
-/** Opener per language: greets, names the requester, sets up the message. */
+/**
+ * Opener per language: explicitly asks to CONFIRM the right person answered
+ * — a clear question the callee knows to respond to. On a positive answer
+ * the agent delivers the message immediately (see prompt).
+ */
 const FIRST_MESSAGES: Record<BuddyLanguage, string> = {
-  en: "Hi {caller}, I'm calling on behalf of {requester}, and {requester} just wanted to let you know the following.",
-  ja: "もしもし、{caller}さん。{requester}さんに代わってお電話しています。{requester}さんから、ぜひお伝えしたいことがあるそうです。",
-  zh: "你好，{caller}。我是替{requester}打来的，{requester}想让你知道下面这件事。",
-  th: "สวัสดีค่ะ {caller} ฉันโทรมาในนามของ{requester} {requester}อยากให้คุณได้ทราบเรื่องต่อไปนี้ค่ะ",
-  vi: "Chào {caller}, mình gọi thay mặt cho {requester}, và {requester} muốn bạn biết điều sau đây.",
+  en: "Hi! Can I confirm I'm speaking with {caller}? I'm calling on behalf of {requester}, who has a message just for you.",
+  ja: "もしもし、{caller}さんでいらっしゃいますか？{requester}さんに代わってお電話しています。{requester}さんからあなたへのメッセージをお預かりしています。",
+  zh: "你好，请问是{caller}吗？我是替{requester}打来的，{requester}有一段话想让我转达给你。",
+  th: "สวัสดีค่ะ ขอยืนยันหน่อยนะคะว่ากำลังพูดกับคุณ{caller}ใช่ไหมคะ? ฉันโทรมาในนามของ{requester} {requester}มีข้อความฝากถึงคุณค่ะ",
+  vi: "Xin chào! Cho mình hỏi có phải {caller} đang nghe máy không? Mình gọi thay mặt cho {requester} — {requester} có một lời nhắn dành riêng cho bạn.",
+  de: "Hallo! Spreche ich mit {caller}? Ich rufe im Auftrag von {requester} an — {requester} hat eine Nachricht für dich.",
+  ko: "안녕하세요! {caller}님 맞으신가요? {requester}님을 대신해 전화드렸어요 — {requester}님이 전할 메시지가 있어요.",
+  fr: "Bonjour ! Je suis bien avec {caller} ? J'appelle de la part de {requester} — {requester} a un message pour toi.",
 };
 
 /** Spoken intro/outro around a replayed voice recording, per language. */
@@ -66,6 +76,9 @@ const RECORDED_INTROS: Record<BuddyLanguage, string> = {
   zh: "你好，{caller}。我是替{requester}打来的。{requester}特意为你录了一段留言，请听。",
   th: "สวัสดีค่ะ {caller} ฉันโทรมาในนามของ{requester} {requester}ได้อัดข้อความไว้ให้คุณโดยเฉพาะ เชิญรับฟังได้เลยค่ะ",
   vi: "Chào {caller}, mình gọi thay mặt cho {requester}. {requester} đã ghi âm một lời nhắn dành riêng cho bạn. Mời bạn nghe.",
+  de: "Hallo {caller}. Ich rufe im Auftrag von {requester} an, und {requester} hat eine Nachricht nur für dich aufgenommen. Hier ist sie.",
+  ko: "안녕하세요, {caller}님. {requester}님을 대신해 전화드렸어요. {requester}님이 {caller}님만을 위해 메시지를 녹음했어요. 들려드릴게요.",
+  fr: "Bonjour {caller}. J'appelle de la part de {requester}, et {requester} a enregistré un message rien que pour toi. Le voici.",
 };
 const RECORDED_OUTROS: Record<BuddyLanguage, string> = {
   en: "That was the message from {requester}. Take care — goodbye!",
@@ -73,6 +86,9 @@ const RECORDED_OUTROS: Record<BuddyLanguage, string> = {
   zh: "以上就是{requester}给你的留言。保重，再见！",
   th: "นั่นคือข้อความจาก{requester}ค่ะ ดูแลตัวเองนะคะ สวัสดีค่ะ",
   vi: "Đó là lời nhắn từ {requester}. Giữ gìn sức khỏe nhé — tạm biệt!",
+  de: "Das war die Nachricht von {requester}. Mach's gut — tschüss!",
+  ko: "{requester}님의 메시지였습니다. 건강하세요 — 안녕히 계세요!",
+  fr: "C'était le message de {requester}. Prends soin de toi — au revoir !",
 };
 
 function fill(template: string, a: AffirmationCall): string {
@@ -83,7 +99,11 @@ function fill(template: string, a: AffirmationCall): string {
 export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
   // Same per-destination pricing as every call; retries are free.
   if (a.userId && a.attempts === 0) {
-    const charge = await chargeForCall(a.userId, a.phoneNumber);
+    const charge = await chargeForCall(
+      a.userId,
+      a.phoneNumber,
+      `Affirmation call — to ${a.recipientName}`,
+    );
     if (!charge.ok) throw new Error(charge.error);
   }
 
@@ -144,22 +164,27 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
 async function placeRecordedCall(a: AffirmationCall): Promise<void> {
   // Synthesize the intro/outro once (library-cached; the multilingual TTS
   // model speaks the text's language — the library key just needs a bucket).
+  // Synthesis failures are NON-fatal: the recording still plays on its own.
   const language = a.language ?? "en";
-  if (!a.introUrl) {
-    const intro = await getOrSynthesize(
-      fill(RECORDED_INTROS[language] ?? RECORDED_INTROS.en, a),
-      "en",
-      "prerender",
-    );
-    a.introUrl = intro.audioUrl;
-  }
-  if (!a.outroUrl) {
-    const outro = await getOrSynthesize(
-      fill(RECORDED_OUTROS[language] ?? RECORDED_OUTROS.en, a),
-      "en",
-      "prerender",
-    );
-    a.outroUrl = outro.audioUrl;
+  try {
+    if (!a.introUrl) {
+      const intro = await getOrSynthesize(
+        fill(RECORDED_INTROS[language] ?? RECORDED_INTROS.en, a),
+        "en",
+        "prerender",
+      );
+      a.introUrl = intro.audioUrl;
+    }
+    if (!a.outroUrl) {
+      const outro = await getOrSynthesize(
+        fill(RECORDED_OUTROS[language] ?? RECORDED_OUTROS.en, a),
+        "en",
+        "prerender",
+      );
+      a.outroUrl = outro.audioUrl;
+    }
+  } catch (err) {
+    console.error(`Affirmation intro/outro synthesis failed for ${a.id} (continuing):`, err);
   }
 
   a.attempts += 1;

@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { listJSON, setJSON } from "@/lib/store";
 import { dispatchCall } from "@/lib/dispatch";
 import { dispatchBuddyCall } from "@/lib/buddy";
-import { dispatchAffirmationCall } from "@/lib/affirm";
+import { dispatchAffirmationCall, handleAffirmationNoAnswer } from "@/lib/affirm";
 import { isWithinCallWindow, nextCallWindowTime } from "@/lib/callWindow";
 import type { AffirmationCall, BuddyCall, ReservationRequest } from "@/lib/types";
 
@@ -60,6 +60,19 @@ export async function GET(request: NextRequest) {
   for (const affirmation of dueAffirmations) {
     const result = await dispatchAffirmationCall(affirmation);
     dispatched.push(`affirm-${affirmation.id}:${result.status}`);
+  }
+
+  // Watchdog: an affirmation stuck in "calling" means the status webhook was
+  // lost — after 15 minutes treat it as a miss so the retry policy resumes.
+  const STALE_MS = 15 * 60_000;
+  for (const affirmation of affirmations) {
+    if (
+      affirmation.status === "calling" &&
+      now - new Date(affirmation.callAt).getTime() > STALE_MS
+    ) {
+      await handleAffirmationNoAnswer(affirmation);
+      dispatched.push(`affirm-${affirmation.id}:stale_retry`);
+    }
   }
 
   return NextResponse.json({

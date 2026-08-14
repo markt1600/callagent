@@ -35,13 +35,18 @@ function windowFor(phoneNumber: string): CallWindow {
 /** UTC offset (hours) inferred from the destination country code. */
 const TZ_OFFSETS: [string, number][] = [
   ["+81", 9], // Japan
+  ["+82", 9], // South Korea
   ["+65", 8], // Singapore
   ["+886", 8],
   ["+852", 8],
   ["+63", 8],
+  ["+66", 7], // Thailand
+  ["+84", 7], // Vietnam
   ["+61", 10],
   ["+64", 12],
   ["+91", 5.5],
+  ["+49", 1], // Germany
+  ["+33", 1], // France
   ["+44", 0],
   ["+1", -5],
 ];

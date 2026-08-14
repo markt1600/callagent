@@ -9,6 +9,9 @@ const TARGET_STYLE: Record<SupportedLanguage, string> = {
   ja: "polite Japanese (natural keigo for a phone call)",
   en: "English",
   zh: "polite spoken Mandarin (普通话, simplified characters, natural for a phone call)",
+  de: "polite German (Sie-Form, natural for a phone call)",
+  ko: "polite Korean (natural 해요체 for a phone call)",
+  fr: "polite French (vouvoiement, natural for a phone call)",
 };
 
 export async function translate(

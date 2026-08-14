@@ -8,7 +8,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import BottomNav from "../components/BottomNav";
-import { destinationTimeLabel, formatInDestination } from "@/lib/phone";
+import {
+  destinationTimeLabel,
+  formatInDestination,
+  isoToDestinationWallClock,
+} from "@/lib/phone";
 import type { AffirmationCall, UserProfile } from "@/lib/types";
 
 const MAX_RECORD_SECONDS = 180;
@@ -75,6 +79,7 @@ const EMPTY = {
   language: "en",
   messageMode: "typed" as "typed" | "recorded",
   recurrence: "",
+  callTiming: "now" as "now" | "scheduled",
 };
 
 const LANGUAGE_OPTIONS = [
@@ -83,6 +88,9 @@ const LANGUAGE_OPTIONS = [
   { value: "ja", label: "Japanese" },
   { value: "th", label: "Thai" },
   { value: "vi", label: "Vietnamese" },
+  { value: "de", label: "German" },
+  { value: "ko", label: "Korean" },
+  { value: "fr", label: "French" },
 ];
 
 export default function AffirmPage() {
@@ -98,6 +106,39 @@ export default function AffirmPage() {
   const recBlob = useRef<Blob | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const recTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  /** Load a pending call into the form for editing. */
+  function startEdit(a: AffirmationCall) {
+    setEditingId(a.id);
+    setForm({
+      recipientName: a.recipientName,
+      phoneNumber: a.phoneNumber,
+      callAt: isoToDestinationWallClock(a.callAt, a.phoneNumber),
+      message: a.message,
+      requesterName: a.requesterName,
+      delivery: a.literal ? "literal" : "embellish",
+      language: a.language ?? "en",
+      messageMode: a.recordingUrl ? "recorded" : "typed",
+      recurrence: a.recurrence ?? "",
+      callTiming: "scheduled",
+    });
+    if (a.recordingUrl) {
+      // Existing recording stays unless re-recorded.
+      recBlob.current = null;
+      setRecPreviewUrl(a.recordingUrl);
+      setRecState("recorded");
+    } else {
+      discardRecording();
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm((f) => ({ ...EMPTY, requesterName: f.requesterName }));
+    discardRecording();
+  }
 
   async function startRecording() {
     setError(null);
@@ -181,28 +222,35 @@ export default function AffirmPage() {
     setBusy(true);
     try {
       // Recorded mode: convert the browser recording to WAV and upload it
-      // first — the call replays this exact audio.
-      let recordingUrl: string | undefined;
+      // first — the call replays this exact audio. When editing, a call
+      // that already has a recording keeps it unless re-recorded.
+      let recordingUrl: string | null | undefined;
       if (form.messageMode === "recorded") {
-        if (!recBlob.current) throw new Error("Record your message first (and preview it).");
-        const wav = await blobToWav(recBlob.current);
-        const up = await fetch("/api/affirm/recording", {
-          method: "POST",
-          headers: { "Content-Type": "audio/wav" },
-          body: wav,
-        });
-        const upData = await up.json();
-        if (!up.ok) throw new Error(upData.error || `Recording upload failed (${up.status})`);
-        recordingUrl = upData.url;
+        if (recBlob.current) {
+          const wav = await blobToWav(recBlob.current);
+          const up = await fetch("/api/affirm/recording", {
+            method: "POST",
+            headers: { "Content-Type": "audio/wav" },
+            body: wav,
+          });
+          const upData = await up.json();
+          if (!up.ok) throw new Error(upData.error || `Recording upload failed (${up.status})`);
+          recordingUrl = upData.url;
+        } else if (!editingId) {
+          throw new Error("Record your message first (and preview it).");
+        }
+      } else if (editingId) {
+        recordingUrl = null; // switched to typed — clear the recording
       }
 
-      const res = await fetch("/api/affirm", {
-        method: "POST",
+      const res = await fetch(editingId ? `/api/affirm/${editingId}` : "/api/affirm", {
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recipientName: form.recipientName,
           phoneNumber: form.phoneNumber,
-          callAt: form.callAt,
+          callNow: !editingId && form.callTiming === "now",
+          callAt: form.callTiming === "scheduled" ? form.callAt : undefined,
           message: form.messageMode === "typed" ? form.message : "",
           requesterName: form.requesterName,
           literal: form.delivery === "literal",
@@ -213,6 +261,7 @@ export default function AffirmPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+      setEditingId(null);
       setForm((f) => ({ ...f, recipientName: "", phoneNumber: "", callAt: "", message: "" }));
       discardRecording();
       await refresh();
@@ -260,7 +309,16 @@ export default function AffirmPage() {
       </p>
 
       <div className="panel">
-        <h2>Schedule an affirmation call</h2>
+        <h2>{editingId ? "Edit affirmation call" : "Schedule an affirmation call"}</h2>
+        {editingId && (
+          <p className="sub" style={{ marginTop: 0 }}>
+            Editing the pending call — save below, or{" "}
+            <a className="admin-link" onClick={cancelEdit} style={{ cursor: "pointer" }}>
+              cancel editing
+            </a>
+            .
+          </p>
+        )}
         <label>Who to call (their name)</label>
         <input
           value={form.recipientName}
@@ -273,17 +331,36 @@ export default function AffirmPage() {
           onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
           placeholder="+6591234567"
         />
-        <label>
-          When to call —{" "}
-          {form.phoneNumber.startsWith("+")
-            ? destinationTimeLabel(form.phoneNumber)
-            : "local time of the number's country"}
-        </label>
-        <input
-          type="datetime-local"
-          value={form.callAt}
-          onChange={(e) => setForm({ ...form, callAt: e.target.value })}
-        />
+        <label>When to call</label>
+        <div className="row">
+          <select
+            value={form.callTiming}
+            onChange={(e) =>
+              setForm({ ...form, callTiming: e.target.value as "now" | "scheduled" })
+            }
+            style={{ flex: 1 }}
+          >
+            <option value="now">Call now</option>
+            <option value="scheduled">Schedule the call</option>
+          </select>
+          {form.callTiming === "scheduled" && (
+            <input
+              type="datetime-local"
+              value={form.callAt}
+              onChange={(e) => setForm({ ...form, callAt: e.target.value })}
+              style={{ flex: 1.4 }}
+            />
+          )}
+        </div>
+        {form.callTiming === "scheduled" && (
+          <p className="sub" style={{ margin: "0.3rem 0 0" }}>
+            Time is{" "}
+            {form.phoneNumber.startsWith("+")
+              ? destinationTimeLabel(form.phoneNumber)
+              : "the local time of the number's country"}{" "}
+            (keyed to the country code).
+          </p>
+        )}
         <label>Repeat</label>
         <select
           value={form.recurrence}
@@ -376,7 +453,13 @@ export default function AffirmPage() {
           onClick={create}
           disabled={busy || (form.messageMode === "recorded" && recState !== "recorded")}
         >
-          {busy ? "Scheduling…" : "💌 Schedule affirmation call"}
+          {busy
+            ? "Saving…"
+            : editingId
+              ? "💾 Save changes"
+              : form.callTiming === "now"
+                ? "💌 Place affirmation call"
+                : "💌 Schedule affirmation call"}
         </button>
         <p className="sub" style={{ margin: "0.5rem 0 0" }}>
           Costs the same credits as any call to that destination.
@@ -405,6 +488,16 @@ export default function AffirmPage() {
                 </div>
               </div>
               <span className="row" style={{ flexShrink: 0, gap: "0.2rem" }}>
+                {a.status === "scheduled" && (
+                  <button
+                    className="delete-btn"
+                    title="Edit this call"
+                    onClick={() => startEdit(a)}
+                    style={{ fontSize: "1rem" }}
+                  >
+                    ✎
+                  </button>
+                )}
                 {(a.status === "scheduled" || a.status === "calling") && (
                   <button
                     className="secondary"

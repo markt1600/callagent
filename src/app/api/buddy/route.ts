@@ -6,7 +6,7 @@ import { destinationWallClockToUtc } from "@/lib/phone";
 import { listJSON, setJSON } from "@/lib/store";
 import type { BuddyCall, BuddyLanguage } from "@/lib/types";
 
-const BUDDY_LANGUAGES: BuddyLanguage[] = ["en", "ja", "zh", "th", "vi"];
+const BUDDY_LANGUAGES: BuddyLanguage[] = ["en", "ja", "zh", "th", "vi", "de", "ko", "fr"];
 
 function parseLanguage(raw: unknown): BuddyLanguage | undefined {
   return BUDDY_LANGUAGES.includes(raw as BuddyLanguage) ? (raw as BuddyLanguage) : undefined;

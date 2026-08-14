@@ -18,6 +18,9 @@ const ENGLISH_LOCALES_BY_PREFIX: [string, string][] = [
 
 export function speechLocaleFor(language: SupportedLanguage, phoneNumber: string): string {
   if (language === "ja") return "ja-JP";
+  if (language === "de") return "de-DE";
+  if (language === "ko") return "ko-KR";
+  if (language === "fr") return "fr-FR";
   if (language === "zh") {
     // Mandarin: simplified for Singapore/mainland, traditional for Taiwan.
     return phoneNumber.startsWith("+886") ? "cmn-Hant-TW" : "cmn-Hans-CN";

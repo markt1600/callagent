@@ -64,7 +64,7 @@ export async function PATCH(request: NextRequest) {
           { status: 400 },
         );
       }
-      const language = (["en", "ja", "zh", "th", "vi"] as const).find(
+      const language = (["en", "ja", "zh", "th", "vi", "de", "ko", "fr"] as const).find(
         (l) => l === raw.language,
       );
       const codeword =
@@ -77,7 +77,7 @@ export async function PATCH(request: NextRequest) {
     }
   }
   if (body.buddyLanguage !== undefined) {
-    user.buddyLanguage = (["en", "ja", "zh", "th", "vi"] as const).find(
+    user.buddyLanguage = (["en", "ja", "zh", "th", "vi", "de", "ko", "fr"] as const).find(
       (l) => l === body.buddyLanguage,
     );
   }

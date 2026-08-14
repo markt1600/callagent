@@ -13,6 +13,8 @@ export async function GET() {
     ELEVENLABS_API_KEY: Boolean(config.elevenlabs.apiKey),
     ELEVENLABS_VOICE_ID: Boolean(config.elevenlabs.voiceId),
     ELEVENLABS_AGENT_ID: Boolean(config.elevenlabs.agentId),
+    ELEVENLABS_BUDDY_AGENT_ID: Boolean(config.elevenlabs.buddyAgentId),
+    ELEVENLABS_AFFIRMATION_AGENT_ID: Boolean(config.elevenlabs.affirmationAgentId),
     ELEVENLABS_AGENT_PHONE_NUMBER_ID: Boolean(config.elevenlabs.agentPhoneNumberId),
     ELEVENLABS_WEBHOOK_SECRET: Boolean(config.elevenlabs.webhookSecret),
     TWILIO_ACCOUNT_SID: Boolean(config.twilio.accountSid),
@@ -57,6 +59,14 @@ export async function GET() {
   }
   if (!env.ELEVENLABS_AGENT_ID || !env.ELEVENLABS_AGENT_PHONE_NUMBER_ID) {
     problems.push("Agent mode not configured (ELEVENLABS_AGENT_ID / ELEVENLABS_AGENT_PHONE_NUMBER_ID)");
+  }
+  if (!env.ELEVENLABS_BUDDY_AGENT_ID) {
+    problems.push("Bail Out Call agent not configured (ELEVENLABS_BUDDY_AGENT_ID)");
+  }
+  if (!env.ELEVENLABS_AFFIRMATION_AGENT_ID) {
+    problems.push(
+      "Affirmation Call agent not configured (ELEVENLABS_AFFIRMATION_AGENT_ID) — typed-message affirmation calls will fail (recorded-voice ones still work)",
+    );
   }
 
   return NextResponse.json({

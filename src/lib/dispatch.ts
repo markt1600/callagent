@@ -43,7 +43,11 @@ export async function dispatchCall(
     // Account credits: every call attempt is charged before dialing.
     // Guest-mode reservations (no userId) are not charged.
     if (reservation.userId) {
-      const charge = await chargeForCall(reservation.userId, reservation.phoneNumber);
+      const charge = await chargeForCall(
+        reservation.userId,
+        reservation.phoneNumber,
+        `${purpose === "cancel" ? "Cancellation" : "Reservation"} call — ${reservation.restaurantName}`,
+      );
       if (!charge.ok) throw new Error(charge.error);
     }
     if (mode === "ivr") {

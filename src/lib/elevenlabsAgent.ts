@@ -172,6 +172,9 @@ const LANGUAGE_NAMES: Record<string, string> = {
   ja: "Japanese",
   en: "English",
   zh: "Mandarin Chinese",
+  de: "German",
+  ko: "Korean",
+  fr: "French",
 };
 
 // Spoken the instant the call connects (the agent's First message in the
@@ -190,6 +193,18 @@ const FIRST_MESSAGES: Record<string, Record<"book" | "cancel", string>> = {
   zh: {
     book: "你好，我想订个位子，麻烦您了。",
     cancel: "你好，我想取消一个订位，麻烦您了。",
+  },
+  de: {
+    book: "Guten Tag! Ich rufe an, um einen Tisch zu reservieren.",
+    cancel: "Guten Tag! Ich rufe wegen der Stornierung einer bestehenden Reservierung an.",
+  },
+  ko: {
+    book: "안녕하세요, 예약을 하고 싶어서 전화드렸습니다.",
+    cancel: "안녕하세요, 기존 예약 취소 건으로 전화드렸습니다.",
+  },
+  fr: {
+    book: "Bonjour ! Je vous appelle pour réserver une table.",
+    cancel: "Bonjour ! Je vous appelle au sujet de l'annulation d'une réservation.",
   },
 };
 

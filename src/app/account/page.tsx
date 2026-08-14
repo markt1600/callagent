@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import GoogleSignIn from "../components/GoogleSignIn";
 import BottomNav from "../components/BottomNav";
 import { countryForPrefix } from "@/lib/phone";
-import type { SavedRestaurant, UserProfile } from "@/lib/types";
+import type { CreditTransaction, SavedRestaurant, UserProfile } from "@/lib/types";
 
 interface MeResponse {
   user: UserProfile | null;
@@ -32,6 +32,9 @@ export default function AccountPage() {
     { value: "ja", label: "Japanese" },
     { value: "th", label: "Thai" },
     { value: "vi", label: "Vietnamese" },
+    { value: "de", label: "German" },
+    { value: "ko", label: "Korean" },
+    { value: "fr", label: "French" },
   ];
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -46,6 +49,7 @@ export default function AccountPage() {
     notifyEmail: "",
   });
   const [editError, setEditError] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -64,6 +68,8 @@ export default function AccountPage() {
         setBuddyLanguage(data.user.buddyLanguage ?? "");
         const rest = await fetch("/api/me/restaurants").then((r) => r.json());
         setRestaurants(rest.restaurants ?? []);
+        const tx = await fetch("/api/me/transactions").then((r) => r.json());
+        setTransactions(tx.transactions ?? []);
       }
     } catch {
       /* transient */
@@ -326,6 +332,35 @@ export default function AccountPage() {
           </div>
 
           <div className="panel">
+            <h2>Credit history</h2>
+            {transactions.length === 0 ? (
+              <p className="sub">
+                Every credit deduction (and addition) will be listed here.
+              </p>
+            ) : (
+              <table className="credit-table">
+                <tbody>
+                  {transactions.map((t) => (
+                    <tr key={t.id}>
+                      <td style={{ whiteSpace: "nowrap", color: "var(--ink-faint)" }}>
+                        {new Date(t.at).toLocaleDateString()}{" "}
+                        {new Date(t.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                      <td>{t.description}</td>
+                      <td style={{ color: t.delta < 0 ? "var(--err)" : "#2f6f4f", fontWeight: 600 }}>
+                        {t.delta > 0 ? `+${t.delta.toLocaleString()}` : t.delta.toLocaleString()}
+                      </td>
+                      <td style={{ color: "var(--ink-faint)" }}>
+                        {t.balanceAfter.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div className="panel">
             <h2>Your restaurants</h2>
             {restaurants.length === 0 ? (
               <p className="sub">
@@ -393,6 +428,9 @@ export default function AccountPage() {
                             <option value="en">English</option>
                             <option value="ja">Japanese</option>
                             <option value="zh">Mandarin</option>
+                            <option value="de">German</option>
+                            <option value="ko">Korean</option>
+                            <option value="fr">French</option>
                           </select>
                         </div>
                       </div>

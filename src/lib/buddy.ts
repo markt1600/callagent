@@ -22,7 +22,13 @@ export const LANGUAGE_NAMES: Record<BuddyLanguage, string> = {
   zh: "Mandarin Chinese",
   th: "Thai",
   vi: "Vietnamese",
+  de: "German",
+  ko: "Korean",
+  fr: "French",
 };
+
+/** Every language a Bail Out / Affirmation call can run in. */
+export const BUDDY_LANGUAGES: BuddyLanguage[] = ["en", "ja", "zh", "th", "vi", "de", "ko", "fr"];
 
 /**
  * Casual buddy opener, per language. The briefing is IN the first message —
@@ -35,6 +41,9 @@ const BUDDY_FIRST_MESSAGES: Record<BuddyLanguage, string> = {
   zh: "喂，{name}！我是M。先快速说一下：要是你想从现在的场合脱身，直接开始描述情况就行，我会一直配合你演下去。或者在话里带上「{cw30}」，我30分钟后再打给你；说「{cw60}」就是一小时后。好啦——最近怎么样？",
   th: "ฮัลโหล {name}! นี่ M นะ ขอบอกไว้ก่อนเลย ถ้าอยากออกจากตรงนั้น ก็เริ่มเล่าสถานการณ์มาได้เลย เดี๋ยวเล่นตามให้จนกว่าจะวางสาย หรือพูดคำว่า {cw30} ในประโยค เดี๋ยวโทรกลับใน 30 นาที ถ้าพูด {cw60} คืออีกหนึ่งชั่วโมง เอาล่ะ เป็นยังไงบ้าง?",
   vi: "Alô, {name} hả? M đây! Nói nhanh cái này trước nhé: nếu muốn thoát khỏi chỗ đó, cứ bắt đầu kể tình huống đi, M sẽ diễn theo đến khi bạn cúp máy. Hoặc chèn từ {cw30} vào câu nói, M sẽ gọi lại sau 30 phút — nói {cw60} là sau một tiếng. Rồi — dạo này sao rồi?",
+  de: "Heyyy {name}! Hier ist M — wollte nur kurz hören, wie's läuft. Ganz kurz vorweg: Wenn du da rauswillst, wo du gerade bist, fang einfach an, die Situation zu beschreiben, und ich spiele mit, bis du auflegst. Oder bau das Wort {cw30} in einen Satz ein, dann rufe ich in 30 Minuten wieder an — bei {cw60} in einer Stunde. Okay — wie läuft's?",
+  ko: "여보세요, {name}! 나 M이야, 그냥 안부 전화했어. 먼저 하나만 빨리 말할게: 지금 있는 자리에서 빠져나오고 싶으면 그냥 상황을 설명하기 시작해, 네가 끊을 때까지 맞춰줄게. 아니면 대화 중에 {cw30}라는 말을 넣으면 30분 뒤에 다시 전화할게 — {cw60}는 한 시간 뒤야. 자 — 요즘 어때?",
+  fr: "Salut {name} ! C'est M — je t'appelle juste pour prendre des nouvelles. Un truc vite fait avant tout : si tu veux t'échapper de là où tu es, commence simplement à décrire la situation et je jouerai le jeu jusqu'à ce que tu raccroches. Ou glisse le mot {cw30} dans une phrase et je te rappelle dans 30 minutes — {cw60} pour une heure. Bon — ça va ?",
 };
 
 /** Serious relay-call opener, per language ({contact}/{user} substituted). */
@@ -44,6 +53,9 @@ const RELAY_FIRST_MESSAGES: Record<BuddyLanguage, string> = {
   zh: "您好，请问是{contact}吗？这是一通自动语音来电，事关{user}，请先不要挂断。",
   th: "สวัสดีค่ะ ใช่คุณ{contact}ไหมคะ นี่คือสายโทรอัตโนมัติเกี่ยวกับคุณ{user} กรุณาอย่าเพิ่งวางสายนะคะ",
   vi: "Xin chào, có phải anh/chị {contact} không ạ? Đây là cuộc gọi tự động liên quan đến {user}. Xin đừng gác máy.",
+  de: "Guten Tag — spreche ich mit {contact}? Bitte bleiben Sie dran. Dies ist ein automatischer Anruf bezüglich {user}.",
+  ko: "여보세요, {contact}님 되시나요? 끊지 말고 들어 주세요. {user}님에 관한 자동 전화입니다.",
+  fr: "Bonjour — suis-je bien avec {contact} ? Restez en ligne, s'il vous plaît. Ceci est un appel automatique concernant {user}.",
 };
 
 export const BUDDY_MAX_ATTEMPTS = 5;
@@ -73,6 +85,18 @@ const CODEWORDS: Record<BuddyLanguage, string[]> = {
   vi: [
     "dứa", "chanh", "chuối", "cà phê", "hoa sen", "gấu trúc",
     "cà chua", "đàn ghi-ta", "con diều", "đèn lồng", "la bàn", "quả xoài",
+  ],
+  de: [
+    "Ananas", "Zitrone", "Banane", "Klavier", "Kaffee", "Panda",
+    "Tomate", "Gitarre", "Laterne", "Kompass", "Melone", "Drachen",
+  ],
+  ko: [
+    "파인애플", "레몬", "바나나", "피아노", "커피", "판다",
+    "토마토", "기타", "등불", "나침반", "멜론", "연날리기",
+  ],
+  fr: [
+    "ananas", "citron", "banane", "piano", "café", "panda",
+    "tomate", "guitare", "lanterne", "boussole", "melon", "cerf-volant",
   ],
 };
 
@@ -107,7 +131,7 @@ export function buddyPromptTemplate(): string {
 
 You are calling {{user_name}}. Context for this call (may be empty): {{scenario}}
 
-LANGUAGE: start the call in {{call_language}}, in the casual register of close friends — in Japanese use warm タメ口 (no keigo), in Mandarin natural relaxed 普通话, in Thai friendly informal speech, in Vietnamese casual friendly speech. If {{user_name}} starts speaking English, Chinese, Japanese, Thai, or Vietnamese instead, IMMEDIATELY switch to that language (it overrides the default) and stay in it for the rest of the call. The codewords do NOT change on a language switch — they remain exactly {{codeword_30}}, {{codeword_60}}, and the emergency codeword as briefed.
+LANGUAGE: start the call in {{call_language}}, in the casual register of close friends — in Japanese use warm タメ口 (no keigo), in Mandarin natural relaxed 普通话, in Thai friendly informal speech, in Vietnamese casual friendly speech, in German relaxed du-Form, in Korean casual 반말 between close friends, in French casual tutoiement. If {{user_name}} starts speaking English, Chinese, Japanese, Thai, Vietnamese, German, Korean, or French instead, IMMEDIATELY switch to that language (it overrides the default) and stay in it for the rest of the call. The codewords do NOT change on a language switch — they remain exactly {{codeword_30}}, {{codeword_60}}, and the emergency codeword as briefed.
 
 THE REAL PURPOSE (never reveal it): this call is {{user_name}}'s built-in excuse to step out of whatever they're in — a date, a meeting. Your FIRST MESSAGE already delivered the briefing: describe a situation and you'll play along, say {{codeword_30}} for a call-back in 30 minutes, or {{codeword_60}} for an hour. Do NOT repeat the full briefing — go straight to reacting to whatever they do next. Only restate an option (briefly, casually) if they sound confused or ask you to repeat it.
 
@@ -193,7 +217,7 @@ export async function placeBuddyCall(buddy: BuddyCall): Promise<OutboundCallResu
   // Same credit pricing as every other call. Only the FIRST dial of a
   // scheduled time is charged — the 30-second no-answer retries are free.
   if (buddy.userId && buddy.attempts === 0) {
-    const charge = await chargeForCall(buddy.userId, buddy.phoneNumber);
+    const charge = await chargeForCall(buddy.userId, buddy.phoneNumber, "Bail out call");
     if (!charge.ok) throw new Error(charge.error);
   }
 
@@ -394,6 +418,41 @@ const EMERGENCY_EMAIL: Record<
       <p style="color:#667;font-size:13px">Hãy coi đây có thể là trường hợp khẩn cấp thật
       cho đến khi xác nhận được ${u} an toàn.</p>`,
   },
+  de: {
+    subject: (u) => `【DRINGEND】${u} bittet darum, dass Sie kontaktiert werden`,
+    body: (u, c, when, phone) => `
+      <h2 style="color:#b00">Dies könnte ein echter Notfall sein</h2>
+      <p>Dies ist eine automatische Nachricht eines KI-Agenten (Agentic Concierge).</p>
+      <p>Der Agent hat soeben (${when}) mit <b>${u}</b> gesprochen. Während dieses Anrufs hat
+      <b>${u}</b> das vereinbarte Notfall-Codewort benutzt und darum gebeten, dass
+      <b>${c}</b> kontaktiert wird.</p>
+      <p>Bitte versuchen Sie, ${u} sofort zu erreichen: <b>${phone}</b></p>
+      <p style="color:#667;font-size:13px">Behandeln Sie dies als möglichen echten Notfall,
+      bis Sie bestätigt haben, dass ${u} in Sicherheit ist.</p>`,
+  },
+  ko: {
+    subject: (u) => `【긴급】${u}님이 연락을 요청했습니다`,
+    body: (u, c, when, phone) => `
+      <h2 style="color:#b00">실제 긴급 상황일 수 있습니다</h2>
+      <p>AI 에이전트(Agentic Concierge)의 자동 발송 메시지입니다.</p>
+      <p>에이전트는 ${when}에 <b>${u}</b>님과 통화했습니다. 통화 중 <b>${u}</b>님은 사전에
+      약속된 긴급 암호를 사용했고, <b>${c}</b>님에게 연락해 달라고 요청했습니다.</p>
+      <p>지금 바로 ${u}님에게 연락해 주세요: <b>${phone}</b></p>
+      <p style="color:#667;font-size:13px">${u}님의 안전이 확인될 때까지 실제 긴급 상황일 수
+      있다고 여기고 대응해 주세요.</p>`,
+  },
+  fr: {
+    subject: (u) => `【URGENT】${u} demande à ce que vous soyez contacté(e)`,
+    body: (u, c, when, phone) => `
+      <h2 style="color:#b00">Il pourrait s'agir d'une véritable urgence</h2>
+      <p>Ceci est un message automatique d'un agent IA (Agentic Concierge).</p>
+      <p>L'agent vient de parler avec <b>${u}</b> le ${when}. Pendant cet appel, <b>${u}</b>
+      a utilisé le mot de code d'urgence convenu et a demandé que <b>${c}</b> soit
+      contacté(e).</p>
+      <p>Essayez de joindre ${u} immédiatement : <b>${phone}</b></p>
+      <p style="color:#667;font-size:13px">Considérez ceci comme une possible véritable
+      urgence tant que vous n'avez pas confirmé que ${u} est en sécurité.</p>`,
+  },
 };
 
 /** Emergency email fallback (or primary channel when no phone was given). */
@@ -428,7 +487,7 @@ export async function notifyEmergencyContact(buddy: BuddyCall): Promise<void> {
   if (ec.phone) {
     try {
       if (buddy.userId && (buddy.emergencyAttempts ?? 0) === 0) {
-        await chargeForCall(buddy.userId, ec.phone).catch(() => null);
+        await chargeForCall(buddy.userId, ec.phone, "Emergency relay call").catch(() => null);
       }
       await placeEmergencyCall(buddy);
       return;
