@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authConfigured, getSessionUser, googleClientId, isAdminUser } from "@/lib/auth";
-import { pickEmergencyCodeword } from "@/lib/buddy";
+import { pickEmergencyCodeword, upsertFriend } from "@/lib/buddy";
 import { config } from "@/lib/config";
 import { creditsOf, getCreditCosts } from "@/lib/credits";
 import { setJSON } from "@/lib/store";
@@ -72,6 +72,8 @@ export async function PATCH(request: NextRequest) {
           ? raw.codeword.trim().toLowerCase().slice(0, 30)
           : (user.emergencyContact?.codeword ?? pickEmergencyCodeword([], language ?? "en"));
       user.emergencyContact = { name, phone, email, codeword, language };
+      // An emergency contact also joins the friends list.
+      await upsertFriend(user.id, name, phone, language);
     } else {
       user.emergencyContact = undefined;
     }

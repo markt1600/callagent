@@ -11,8 +11,8 @@
 
 import { config, requireEnv } from "./config";
 import { chargeForCall } from "./credits";
-import { setJSON } from "./store";
-import type { BuddyCall, BuddyLanguage } from "./types";
+import { getJSON, setJSON } from "./store";
+import type { BuddyCall, BuddyLanguage, Friend } from "./types";
 
 const API = "https://api.elevenlabs.io";
 
@@ -293,6 +293,31 @@ export async function rescheduleBuddy(buddy: BuddyCall, minutes: number): Promis
   buddy.attempts = 0;
   buddy.lastConversationId = undefined;
   await setJSON(`buddy:${buddy.id}`, buddy);
+}
+
+/**
+ * Add/update a friend on the user's account (keyed by phone digits) —
+ * used when someone is named as an emergency contact or called directly.
+ * No-op without a phone number.
+ */
+export async function upsertFriend(
+  userId: string,
+  name: string,
+  phoneNumber: string | undefined,
+  language?: BuddyLanguage,
+): Promise<void> {
+  if (!phoneNumber) return;
+  const id = phoneNumber.replace(/\D/g, "");
+  const key = `userfriend:${userId}:${id}`;
+  const prev = await getJSON<Friend>(key);
+  const friend: Friend = {
+    ...prev,
+    id,
+    name,
+    phoneNumber,
+    language: language ?? prev?.language,
+  };
+  await setJSON(key, friend);
 }
 
 /** Case-insensitive check for a codeword anywhere in the transcript. */

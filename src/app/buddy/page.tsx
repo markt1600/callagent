@@ -11,7 +11,7 @@ import {
   formatInDestination,
   isoToDestinationWallClock,
 } from "@/lib/phone";
-import type { BuddyCall, UserProfile } from "@/lib/types";
+import type { BuddyCall, Friend, UserProfile } from "@/lib/types";
 
 interface MeResponse {
   user: UserProfile | null;
@@ -49,6 +49,19 @@ export default function BuddyPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [friends, setFriends] = useState<Friend[]>([]);
+
+  /** Fill the emergency-contact fields from a saved friend. */
+  function applyFriendAsEc(id: string) {
+    const f = friends.find((x) => x.id === id);
+    if (!f) return;
+    setForm((prev) => ({
+      ...prev,
+      ecName: f.name,
+      ecPhone: f.phoneNumber,
+      ecLanguage: f.language ?? prev.ecLanguage,
+    }));
+  }
 
   /** Load a pending call into the form for editing. */
   function startEdit(b: BuddyCall) {
@@ -106,6 +119,10 @@ export default function BuddyPage() {
             ecCodeword: f.ecCodeword || u.emergencyContact?.codeword || "",
             ecLanguage: f.ecLanguage || u.emergencyContact?.language || "",
           }));
+          fetch("/api/me/friends")
+            .then((r) => r.json())
+            .then((d) => setFriends(d.friends ?? []))
+            .catch(() => {});
         }
       })
       .catch(() => {});
@@ -253,6 +270,19 @@ export default function BuddyPage() {
             and telling them this could be a real emergency.
             {me?.user ? " Saved to your account for future bail out calls." : ""}
           </p>
+          {friends.length > 0 && (
+            <>
+              <label>Choose from your friends (fills the details below)</label>
+              <select value="" onChange={(e) => applyFriendAsEc(e.target.value)}>
+                <option value="">— Pick a friend —</option>
+                {friends.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} ({f.phoneNumber})
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <label>Contact name</label>
           <input
             value={form.ecName}

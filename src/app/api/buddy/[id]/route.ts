@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { BUDDY_LANGUAGES, pickCodewords, pickEmergencyCodeword } from "@/lib/buddy";
+import { BUDDY_LANGUAGES, pickCodewords, pickEmergencyCodeword, upsertFriend } from "@/lib/buddy";
 import { destinationWallClockToUtc } from "@/lib/phone";
 import { getJSON, setJSON, store } from "@/lib/store";
 import type { BuddyCall, BuddyLanguage } from "@/lib/types";
@@ -80,6 +80,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           : (buddy.emergencyContact?.codeword ??
             pickEmergencyCodeword([buddy.codeword30, buddy.codeword60], ecLanguage ?? buddy.language));
       buddy.emergencyContact = { name, phone, email, codeword, language: ecLanguage };
+      // An emergency contact also joins the friends list.
+      if (buddy.userId) await upsertFriend(buddy.userId, name, phone, ecLanguage);
     } else {
       buddy.emergencyContact = undefined;
     }

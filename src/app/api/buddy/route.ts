@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getSessionUser } from "@/lib/auth";
-import { dispatchBuddyCall, pickCodewords, pickEmergencyCodeword } from "@/lib/buddy";
+import { dispatchBuddyCall, pickCodewords, pickEmergencyCodeword, upsertFriend } from "@/lib/buddy";
 import { destinationWallClockToUtc } from "@/lib/phone";
 import { listJSON, setJSON } from "@/lib/store";
 import type { BuddyCall, BuddyLanguage } from "@/lib/types";
@@ -114,11 +114,20 @@ export async function POST(request: NextRequest) {
     };
     await setJSON(`buddy:${buddy.id}`, buddy);
 
-    // Remember the language (and any emergency contact) on the account.
+    // Remember the language (and any emergency contact) on the account;
+    // an emergency contact also joins the friends list.
     if (user) {
       user.buddyLanguage = language;
       if (emergencyContact && rawEc) user.emergencyContact = emergencyContact;
       await setJSON(`user:${user.id}`, user);
+      if (emergencyContact) {
+        await upsertFriend(
+          user.id,
+          emergencyContact.name,
+          emergencyContact.phone,
+          emergencyContact.language,
+        );
+      }
     }
 
     // A time that's already here (or within a minute) means "call now".
