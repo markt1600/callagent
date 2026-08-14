@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import BottomNav from "../components/BottomNav";
+import { countryForPrefix } from "@/lib/phone";
 import type { LibraryEntry, ReservationRequest } from "@/lib/types";
 
 interface LibraryStats {
@@ -263,6 +264,13 @@ export default function AdminPage() {
                 placeholder="+81"
                 style={{ flex: "1 1 100px", minWidth: 100 }}
               />
+              <span className="sub" style={{ margin: 0, flex: "1 1 90px", minWidth: 90 }}>
+                {c.prefix === "default"
+                  ? "everywhere else"
+                  : countryForPrefix(c.prefix) !== c.prefix
+                    ? countryForPrefix(c.prefix)
+                    : ""}
+              </span>
               <input
                 type="number"
                 min={0}

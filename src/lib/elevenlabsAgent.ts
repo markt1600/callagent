@@ -13,6 +13,7 @@
 // The agent prompt should reference the dynamic variables passed below.
 
 import { config, requireEnv } from "./config";
+import { contactNumberForCall } from "./phone";
 import type { ReservationPreferences, ReservationRequest } from "./types";
 
 const API = "https://api.elevenlabs.io";
@@ -221,7 +222,11 @@ export async function placeAgentCall(
         ? `Special requests: ${req.specialRequests}`
         : "",
       // The guest's own contact number — never the Twilio caller number.
-      callback_number: req.contactPhone || "not available",
+      // Domestic format when calling the guest's own country (a Singapore
+      // restaurant hears "9750 8007"), full international number otherwise.
+      callback_number: req.contactPhone
+        ? contactNumberForCall(req.contactPhone, req.phoneNumber)
+        : "not available",
       reservation_id: req.id,
     },
     // Force the conversation language per call. Requires the "Language"

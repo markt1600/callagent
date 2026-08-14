@@ -9,7 +9,7 @@ import type { CallSession, ReservationRequest } from "./types";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const FROM_EMAIL = process.env.CONFIRMATION_FROM_EMAIL || "";
-const FROM_NAME = process.env.CONFIRMATION_FROM_NAME || "CallAgent";
+const FROM_NAME = process.env.CONFIRMATION_FROM_NAME || "Agentic Concierge";
 
 function escapeHtml(s: string): string {
   return s
@@ -92,7 +92,7 @@ function buildEmail(reservation: ReservationRequest, call: CallSession | null) {
            <table style="border-collapse:collapse;width:100%;border:1px solid #e3e6eb;border-radius:8px">${transcriptRows}</table>`
         : `<p style="color:#889">No transcript was captured for this call.</p>`
     }
-    <p style="color:#99a;font-size:12px;margin-top:20px">Sent by CallAgent — please verify the details above; if anything looks wrong, call the restaurant to correct it.</p>
+    <p style="color:#99a;font-size:12px;margin-top:20px">Sent by Agentic Concierge — please verify the details above; if anything looks wrong, call the restaurant to correct it.</p>
   </div>`;
 
   return { subject, html };

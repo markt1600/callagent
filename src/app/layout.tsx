@@ -19,9 +19,9 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
 });
 
-const APP_NAME = "Agentic Reservations";
+const APP_NAME = "Agentic Concierge";
 const DESCRIPTION =
-  "AI reservation agent for restaurants in Japan and Singapore — it calls the restaurant and books your table.";
+  "The AI concierge agent that crosses the line from virtual to reality — it phones real restaurants in Japan and Singapore and books your table.";
 
 const baseUrl =
   process.env.PUBLIC_BASE_URL ||

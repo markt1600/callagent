@@ -4,7 +4,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "Agentic Reservations — AI reservation agent for restaurants in Japan and Singapore";
+export const alt = "Agentic Concierge — the AI concierge agent that crosses the line from virtual to reality";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -48,7 +48,7 @@ export default function OgImage() {
             display: "flex",
           }}
         >
-          Agentic Reservations
+          Agentic Concierge
         </div>
         <div
           style={{
@@ -58,7 +58,7 @@ export default function OgImage() {
             display: "flex",
           }}
         >
-          AI reservation agent for restaurants in Japan &amp; Singapore
+          Crossing the line from virtual to reality
         </div>
         <div
           style={{

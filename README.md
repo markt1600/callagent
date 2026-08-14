@@ -1,4 +1,4 @@
-# CallAgent — AI reservation agent for restaurants in Japan and Singapore
+# Agentic Concierge — the AI concierge agent that crosses the line from virtual to reality
 
 An AI agent that **calls restaurants and books your table**: enter the restaurant's number, party size, date/time, and language, and it places the call immediately — or at a time you schedule. Built with Next.js and deployed on **Vercel**, using **ElevenLabs** for speech, **Twilio** for telephony, and **Claude** for phrase generation, intent matching, and live translation.
 

@@ -408,11 +408,11 @@ export default function Dashboard() {
       <main style={{ maxWidth: 560 }}>
         <div className="eyebrow">marktan.ai · phone concierge</div>
         <h1>
-          Agentic <em>Reservations</em>
+          Agentic <em>Concierge</em>
         </h1>
         <p className="sub">
-          AI reservation agent for restaurants in Japan and Singapore — it calls the
-          restaurant and books your table.
+          The AI concierge agent that crosses the line from virtual to reality — it phones
+          real restaurants in Japan and Singapore and books your table.
         </p>
         <div className="panel">
           {gate === "loading" ? (
@@ -457,11 +457,11 @@ export default function Dashboard() {
         style={{ cursor: "pointer" }}
         title="Back to overview"
       >
-        Agentic <em>Reservations</em>
+        Agentic <em>Concierge</em>
       </h1>
       <p className="sub">
-        AI reservation agent for restaurants in Japan and Singapore — enter the details,
-        and it calls the restaurant and books your table.
+        The AI concierge agent that crosses the line from virtual to reality — enter the
+        details, and it phones the restaurant and books your table.
       </p>
 
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center", margin: "0.6rem 0 1.2rem" }}>

@@ -491,6 +491,21 @@ details[open] summary::before {
   white-space: nowrap;
 }
 
+.credit-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.2rem 0 0.4rem;
+  font-size: 0.85rem;
+}
+.credit-table td {
+  padding: 0.35rem 0.5rem 0.35rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.credit-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
 /* ─── Modal ──────────────────────────────────────────────────────────────── */
 .modal-backdrop {
   position: fixed;

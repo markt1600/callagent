@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import GoogleSignIn from "../components/GoogleSignIn";
 import BottomNav from "../components/BottomNav";
+import { countryForPrefix } from "@/lib/phone";
 import type { SavedRestaurant, UserProfile } from "@/lib/types";
 
 interface MeResponse {
@@ -182,15 +183,35 @@ export default function AccountPage() {
                 <div className="stat-label">credits available</div>
               </div>
             </div>
-            <p className="sub" style={{ margin: "0.3rem 0 0" }}>
-              Each call costs credits by destination —{" "}
-              {me &&
-                Object.entries(me.creditCosts)
-                  .filter(([k]) => k !== "default")
-                  .map(([prefix, cost]) => `${prefix} ${cost}`)
-                  .join(" · ")}{" "}
-              · elsewhere {me?.creditCosts.default ?? 1} per call.
+            <p className="sub" style={{ margin: "0.3rem 0 0.2rem" }}>
+              Each call costs credits by destination:
             </p>
+            <table className="credit-table">
+              <tbody>
+                {me &&
+                  Object.entries(me.creditCosts)
+                    .filter(([k]) => k !== "default")
+                    .sort(([a], [b]) => countryForPrefix(a).localeCompare(countryForPrefix(b)))
+                    .map(([prefix, cost]) => (
+                      <tr key={prefix}>
+                        <td>
+                          {countryForPrefix(prefix)}{" "}
+                          <span className="meta" style={{ display: "inline" }}>({prefix})</span>
+                        </td>
+                        <td>
+                          {cost} credit{cost === 1 ? "" : "s"} / call
+                        </td>
+                      </tr>
+                    ))}
+                <tr>
+                  <td>All other destinations</td>
+                  <td>
+                    {me?.creditCosts.default ?? 1} credit
+                    {(me?.creditCosts.default ?? 1) === 1 ? "" : "s"} / call
+                  </td>
+                </tr>
+              </tbody>
+            </table>
             <label>Booking name (pre-filled on every reservation)</label>
             <input
               value={bookingName}
