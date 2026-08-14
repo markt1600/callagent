@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
       literal: body.literal !== false,
       recordingUrl,
       language: LANGUAGES.includes(body.language) ? (body.language as BuddyLanguage) : "en",
+      persona: body.persona === "ahbeng" ? "ahbeng" : "standard",
       recurrence: ["daily", "monthly", "annual"].includes(body.recurrence)
         ? (body.recurrence as AffirmationCall["recurrence"])
         : undefined,
@@ -105,6 +106,8 @@ export async function POST(request: NextRequest) {
       attemptsInCycle: 0,
       cycle: 1,
     };
+    // Ah Beng only speaks English and Chinese.
+    if (call.persona === "ahbeng" && call.language !== "zh") call.language = "en";
     await setJSON(`affirm:${call.id}`, call);
 
     // Remember the recipient as a friend on the account (keyed by number).

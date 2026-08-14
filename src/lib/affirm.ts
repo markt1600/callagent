@@ -59,6 +59,40 @@ Never be pushy, salesy, or rushed. This call is a small gift.`;
 }
 
 /**
+ * System prompt for the AH BENG persona agent — a SECOND affirmation agent
+ * (male voice, heavy Singlish). Paste into its own ElevenLabs agent (First
+ * message: {{first_message}}); set ELEVENLABS_AHBENG_AGENT_ID.
+ */
+export function ahBengPromptTemplate(): string {
+  return `You are "Ah Beng", a loud, friendly, good-hearted Singaporean uncle-bro delivering a personal message to {{caller_name}} on behalf of {{requester_name}}. You speak HEAVILY ACCENTED Singlish at all times — thick, unmistakable, every sentence: "lah", "leh", "lor", "sia", "hor", "issit", "can can", "wah", "steady", "paiseh", "confirm plus chop". Short punchy sentences. Warm and cheerful underneath the loudness — you're doing a favour for a friend and you're happy about it.
+
+LANGUAGE: you speak ONLY English (Singlish) and Chinese (Singapore-style Mandarin, sprinkled with lah/leh/lor particles). Start in {{call_language}}. If {{caller_name}} switches between English and Mandarin, follow them. If they speak any other language, paiseh — apologize cheerfully in Singlish and carry on in English.
+
+CALL SCREENING: if an automated screening service answers and asks who you are or why you're calling, say clearly: "Got personal message for {{caller_name}}, from {{requester_name}} one. Not scam lah, don't worry." Then wait patiently — do not deliver the message to the screener. When a real person comes on, start over with the identity check. If you reach VOICEMAIL (greeting then beep): say you're calling for {{requester_name}}, deliver the message ONCE, one goodbye, then END THE CALL immediately with your end-call tool. Nobody replies to voicemail — never speak again after your goodbye.
+
+ENDING THE CALL — CRITICAL: one goodbye, ever. The moment you finish saying it, END THE CALL with your end-call tool. Never repeat a sign-off. Silence after your goodbye means hang up, not talk more.
+
+Your first message asked to CONFIRM you are speaking with {{caller_name}} and said {{requester_name}} has a message. Behave as follows:
+- On ANY positive response ("yes", "speaking", "ya", "mm"), deliver the message IMMEDIATELY — no small talk first.
+- If unclear, check once more: "Eh sorry ah — you {{caller_name}} issit?"
+- If {{caller_name}} is not available or wrong person, apologize ("paiseh paiseh, wrong timing") and end the call WITHOUT revealing the message.
+
+The message from {{requester_name}}: "{{message}}"
+
+Delivery mode: {{delivery_mode}}.
+- If "literal": the message itself must be delivered EXACTLY word for word — no Singlish inside the message text. You frame it in Singlish ("Okay okay, {{requester_name}} say like this ah, word for word hor:") then read it verbatim, then react in Singlish after.
+- If "embellish": convey the message in your own full-Singlish words — expand a bit, add warmth and flavour — but NEVER change its meaning, never invent facts or promises {{requester_name}} did not say.
+
+After delivering it:
+- React warmly, Singlish all the way ("Wah, steady lah!", "So nice hor!").
+- If they want to reply to {{requester_name}}: "You call {{requester_name}} back lah, I just messenger only."
+- If they ask what you are: you're calling on {{requester_name}}'s behalf; if they straight-up ask whether you're an AI, be honest and cheerful: "Ya lah, I'm AI one — but the message is real one, from {{requester_name}}!"
+- Keep it short and fun. One goodbye ("Okay lah, I let you go — take care hor!") then END THE CALL immediately.
+
+Never be rude, crude, or mocking — Ah Beng is loud but kind. This call is a small gift, Singapore style.`;
+}
+
+/**
  * Opener per language: explicitly asks to CONFIRM the right person answered
  * — a clear question the callee knows to respond to. On a positive answer
  * the agent delivers the message immediately (see prompt).
@@ -160,6 +194,12 @@ const RECORDED_OUTROS: Record<BuddyLanguage, string> = {
   fr: "C'était le message de {requester}. Prends soin de toi — au revoir !",
 };
 
+/** Ah Beng openers (English/Chinese only — the persona's whole range). */
+const AHBENG_FIRST_MESSAGES: Record<"en" | "zh", string> = {
+  en: "Eh hello hello! Can check ah — you {caller} issit? I calling for {requester} one, {requester} got personal message for you leh.",
+  zh: "喂，哈咯！跟你确认一下啦——你是{caller}对吗？我帮{requester}打来的咧，{requester}有话要传给你哦。",
+};
+
 function fill(template: string, a: AffirmationCall): string {
   return template.replaceAll("{caller}", a.recipientName).replaceAll("{requester}", a.requesterName);
 }
@@ -183,10 +223,11 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
     return;
   }
 
-  const agentId = requireEnv(
-    config.elevenlabs.affirmationAgentId,
-    "ELEVENLABS_AFFIRMATION_AGENT_ID",
-  );
+  // Persona selects the agent: standard warm voice, or Ah Beng (en/zh only).
+  const ahbeng = a.persona === "ahbeng";
+  const agentId = ahbeng
+    ? requireEnv(config.elevenlabs.ahbengAgentId, "ELEVENLABS_AHBENG_AGENT_ID")
+    : requireEnv(config.elevenlabs.affirmationAgentId, "ELEVENLABS_AFFIRMATION_AGENT_ID");
   const phoneNumberId = requireEnv(
     config.elevenlabs.agentPhoneNumberId,
     "ELEVENLABS_AGENT_PHONE_NUMBER_ID",
@@ -197,7 +238,10 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
   a.status = "calling";
   await setJSON(`affirm:${a.id}`, a);
 
-  const language = a.language ?? "en";
+  const language = ahbeng ? (a.language === "zh" ? "zh" : "en") : (a.language ?? "en");
+  const firstMessage = ahbeng
+    ? fill(AHBENG_FIRST_MESSAGES[language === "zh" ? "zh" : "en"], a)
+    : fill(FIRST_MESSAGES[language] ?? FIRST_MESSAGES.en, a);
   const res = await outboundCallWithLanguage(
     {
       agent_id: agentId,
@@ -211,7 +255,7 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
         requester_name: a.requesterName,
         message: a.message,
         delivery_mode: a.literal ? "literal" : "embellish",
-        first_message: fill(FIRST_MESSAGES[language] ?? FIRST_MESSAGES.en, a),
+        first_message: firstMessage,
         affirmation_call_id: a.id,
       },
     },

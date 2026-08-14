@@ -341,6 +341,12 @@ export interface AffirmationCall {
   requesterName: string;
   /** Language the agent speaks when calling the recipient */
   language: BuddyLanguage;
+  /**
+   * Voice/persona for spoken (typed-message) delivery: the standard warm
+   * female voice, or "ahbeng" — a male, heavily Singlish-accented character
+   * (its own ElevenLabs agent; English and Chinese only).
+   */
+  persona?: "standard" | "ahbeng";
   /** The message to deliver (may be empty when a recording is attached) */
   message: string;
   /** True = word-for-word delivery; false = the AI may warmly embellish */

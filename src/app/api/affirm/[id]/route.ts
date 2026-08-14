@@ -55,6 +55,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     call.language = body.language as BuddyLanguage;
   }
   if (body.literal !== undefined) call.literal = body.literal !== false;
+  if (body.persona !== undefined) {
+    call.persona = body.persona === "ahbeng" ? "ahbeng" : "standard";
+  }
+  if (call.persona === "ahbeng" && call.language !== "zh") call.language = "en";
   if (body.recurrence !== undefined) {
     call.recurrence = ["daily", "monthly", "annual"].includes(body.recurrence)
       ? (body.recurrence as AffirmationCall["recurrence"])

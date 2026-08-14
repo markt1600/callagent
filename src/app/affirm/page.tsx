@@ -78,6 +78,7 @@ const EMPTY = {
   requesterName: "",
   delivery: "literal",
   language: "en",
+  persona: "standard",
   messageMode: "typed" as "typed" | "recorded",
   recurrence: "",
   callTiming: "now" as "now" | "scheduled",
@@ -133,6 +134,7 @@ export default function AffirmPage() {
       requesterName: a.requesterName,
       delivery: a.literal ? "literal" : "embellish",
       language: a.language ?? "en",
+      persona: a.persona ?? "standard",
       messageMode: a.recordingUrl ? "recorded" : "typed",
       recurrence: a.recurrence ?? "",
       callTiming: "scheduled",
@@ -273,6 +275,7 @@ export default function AffirmPage() {
           requesterName: form.requesterName,
           literal: form.delivery === "literal",
           language: form.language,
+          persona: form.persona,
           recurrence: form.recurrence || undefined,
           recordingUrl,
         }),
@@ -407,12 +410,38 @@ export default function AffirmPage() {
           onChange={(e) => setForm({ ...form, requesterName: e.target.value })}
           placeholder="Mark"
         />
+        {form.messageMode === "typed" && (
+          <>
+            <label>Voice</label>
+            <select
+              value={form.persona}
+              onChange={(e) => {
+                const persona = e.target.value;
+                setForm({
+                  ...form,
+                  persona,
+                  // Ah Beng only speaks English and Chinese.
+                  language:
+                    persona === "ahbeng" && form.language !== "zh" && form.language !== "en"
+                      ? "en"
+                      : form.language,
+                });
+              }}
+            >
+              <option value="standard">Standard (warm female voice)</option>
+              <option value="ahbeng">Ah Beng (male, heavy Singlish — English/Chinese only)</option>
+            </select>
+          </>
+        )}
         <label>Agent language (when it calls them)</label>
         <select
           value={form.language}
           onChange={(e) => setForm({ ...form, language: e.target.value })}
         >
-          {LANGUAGE_OPTIONS.map((o) => (
+          {(form.persona === "ahbeng" && form.messageMode === "typed"
+            ? LANGUAGE_OPTIONS.filter((o) => o.value === "en" || o.value === "zh")
+            : LANGUAGE_OPTIONS
+          ).map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
@@ -503,6 +532,7 @@ export default function AffirmPage() {
                 <div className="meta">
                   To {a.recipientName} · {a.phoneNumber} · from {a.requesterName} ·{" "}
                   {a.recordingUrl ? "your voice" : a.literal ? "word-for-word" : "embellished"}
+                  {!a.recordingUrl && a.persona === "ahbeng" ? " · Ah Beng 🕶️" : ""}
                   {a.recurrence
                     ? ` · repeats ${a.recurrence === "annual" ? "annually" : a.recurrence}`
                     : ""}
