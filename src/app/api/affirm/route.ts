@@ -61,9 +61,15 @@ export async function POST(request: NextRequest) {
     const messageKind = (["joke", "compliment", "insult"] as const).find(
       (k) => k === body.messageKind,
     );
-    if (!recordingUrl && !messageKind && (!body.message || !String(body.message).trim())) {
+    const checkIn = body.checkIn === true;
+    if (
+      !checkIn &&
+      !recordingUrl &&
+      !messageKind &&
+      (!body.message || !String(body.message).trim())
+    ) {
       return NextResponse.json(
-        { error: "A message to deliver (a typed text, an AI-generated pick, or a voice recording) is required" },
+        { error: "A message to deliver (typed, AI-generated, or recorded) — or check-in mode — is required" },
         { status: 400 },
       );
     }
@@ -100,6 +106,7 @@ export async function POST(request: NextRequest) {
       language: LANGUAGES.includes(body.language) ? (body.language as BuddyLanguage) : "en",
       persona: body.persona === "ahbeng" ? "ahbeng" : "standard",
       longChat: body.longChat === true,
+      checkIn: checkIn || undefined,
       recurrence: ["daily", "monthly", "annual"].includes(body.recurrence)
         ? (body.recurrence as AffirmationCall["recurrence"])
         : undefined,
@@ -115,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     // AI-generated message: written now (in the call's language) so the user
     // can see exactly what will be delivered on the card.
-    if (messageKind && !recordingUrl && !call.message) {
+    if (messageKind && !checkIn && !recordingUrl && !call.message) {
       call.messageKind = messageKind;
       call.message = await generateAffirmationMessage(
         messageKind,

@@ -80,7 +80,7 @@ const EMPTY = {
   language: "en",
   persona: "standard",
   longChat: false,
-  messageMode: "typed" as "typed" | "generated" | "recorded",
+  messageMode: "typed" as "typed" | "generated" | "recorded" | "checkin",
   messageKind: "joke",
   recurrence: "",
   callTiming: "now" as "now" | "scheduled",
@@ -138,7 +138,7 @@ export default function AffirmPage() {
       language: a.language ?? "en",
       persona: a.persona ?? "standard",
       longChat: Boolean(a.longChat),
-      messageMode: a.recordingUrl ? "recorded" : "typed",
+      messageMode: a.recordingUrl ? "recorded" : a.checkIn ? "checkin" : "typed",
       messageKind: a.messageKind ?? "joke",
       recurrence: a.recurrence ?? "",
       callTiming: "scheduled",
@@ -277,6 +277,7 @@ export default function AffirmPage() {
           callAt: form.callTiming === "scheduled" ? form.callAt : undefined,
           message: form.messageMode === "typed" ? form.message : "",
           messageKind: form.messageMode === "generated" ? form.messageKind : undefined,
+          checkIn: form.messageMode === "checkin",
           requesterName: form.requesterName,
           literal: form.delivery === "literal",
           language: form.language,
@@ -459,14 +460,22 @@ export default function AffirmPage() {
           onChange={(e) =>
             setForm({
               ...form,
-              messageMode: e.target.value as "typed" | "generated" | "recorded",
+              messageMode: e.target.value as "typed" | "generated" | "recorded" | "checkin",
             })
           }
         >
           <option value="typed">Type it — the AI voice delivers it</option>
           <option value="generated">AI-generated — joke, compliment, or roast</option>
           <option value="recorded">Record it in my own voice — replayed on the call</option>
+          <option value="checkin">No message — just call and check how they&apos;re doing</option>
         </select>
+        {form.messageMode === "checkin" && (
+          <p className="sub" style={{ margin: "0.3rem 0 0" }}>
+            The agent calls on your behalf, confirms it&apos;s them, and asks how
+            they&apos;ve been — in its own persona
+            {form.persona === "ahbeng" ? " (Ah Beng does it rough and blunt)" : ""}.
+          </p>
+        )}
         {form.messageMode === "generated" && (
           <>
             <label>What should the AI write?</label>
@@ -494,7 +503,7 @@ export default function AffirmPage() {
             />
           </>
         )}
-        {form.messageMode !== "recorded" && (
+        {(form.messageMode === "typed" || form.messageMode === "generated") && (
           <>
             <label>Delivery</label>
             <select
@@ -504,15 +513,17 @@ export default function AffirmPage() {
               <option value="literal">Word-for-word (literal)</option>
               <option value="embellish">Approximate — the AI may warmly embellish</option>
             </select>
-            <label style={{ margin: "0.8rem 0 0", textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
-              <input
-                type="checkbox"
-                checked={form.longChat}
-                onChange={(e) => setForm({ ...form, longChat: e.target.checked })}
-              />
-              Longer call — after the message, keep chatting until they hang up
-            </label>
           </>
+        )}
+        {form.messageMode !== "recorded" && (
+          <label style={{ margin: "0.8rem 0 0", textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
+            <input
+              type="checkbox"
+              checked={form.longChat}
+              onChange={(e) => setForm({ ...form, longChat: e.target.checked })}
+            />
+            Longer call — keep chatting until they hang up
+          </label>
         )}
         {form.messageMode === "recorded" && (
           <div style={{ marginTop: "0.6rem" }}>
@@ -571,7 +582,13 @@ export default function AffirmPage() {
                 <span className={`badge ${a.status}`}>{a.status}</span>
                 <div className="meta">
                   To {a.recipientName} · {a.phoneNumber} · from {a.requesterName} ·{" "}
-                  {a.recordingUrl ? "your voice" : a.literal ? "word-for-word" : "embellished"}
+                  {a.recordingUrl
+                    ? "your voice"
+                    : a.checkIn
+                      ? "check-in call"
+                      : a.literal
+                        ? "word-for-word"
+                        : "embellished"}
                   {!a.recordingUrl && a.messageKind
                     ? ` · AI ${a.messageKind === "insult" ? "roast" : a.messageKind}`
                     : ""}
@@ -615,7 +632,11 @@ export default function AffirmPage() {
                 </button>
               </span>
             </div>
-            {a.recordingUrl ? (
+            {a.checkIn && !a.recordingUrl ? (
+              <div className="meta" style={{ marginTop: "0.4rem" }}>
+                👋 Check-in call — no message, just seeing how they&apos;re doing.
+              </div>
+            ) : a.recordingUrl ? (
               <div className="meta" style={{ marginTop: "0.4rem" }}>
                 🎙 Recorded voice message
                 <audio

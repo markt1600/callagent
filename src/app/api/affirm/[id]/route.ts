@@ -59,6 +59,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     call.persona = body.persona === "ahbeng" ? "ahbeng" : "standard";
   }
   if (body.longChat !== undefined) call.longChat = body.longChat === true;
+  if (body.checkIn !== undefined) call.checkIn = body.checkIn === true || undefined;
   if (call.persona === "ahbeng" && call.language !== "zh") call.language = "en";
   if (body.recurrence !== undefined) {
     call.recurrence = ["daily", "monthly", "annual"].includes(body.recurrence)
@@ -86,9 +87,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body.message !== undefined) {
     call.message = String(body.message).trim().slice(0, 1500);
   }
-  if (!call.recordingUrl && !call.message) {
+  if (!call.recordingUrl && !call.message && !call.checkIn) {
     return NextResponse.json(
-      { error: "A message to deliver (or a voice recording) is required" },
+      { error: "A message to deliver (or a voice recording, or check-in mode) is required" },
       { status: 400 },
     );
   }

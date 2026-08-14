@@ -353,6 +353,8 @@ export interface AffirmationCall {
   message: string;
   /** Set when the message was AI-generated instead of typed */
   messageKind?: "joke" | "compliment" | "insult";
+  /** No message at all — the agent just calls to check how they're doing */
+  checkIn?: boolean;
   /** True = word-for-word delivery; false = the AI may warmly embellish */
   literal: boolean;
   /**

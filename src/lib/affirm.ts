@@ -42,6 +42,10 @@ Your first message asked to CONFIRM you are speaking with {{caller_name}} and sa
 - If the response is unclear, ask once more, briefly and warmly ("Sorry — just to check, is this {{caller_name}}?").
 - If they say {{caller_name}} is not available or you have the wrong person, apologize warmly and end the call without revealing the message.
 
+CALL PURPOSE — the variable {{call_purpose}} is "{{call_purpose}}":
+- If "message": your job is to deliver the message below, per the delivery mode.
+- If "checkin": there is NO message to deliver — the call itself is the point. {{requester_name}} asked you to check in on {{caller_name}}. After they confirm who they are, ask how they've been, listen with real attention, respond warmly, ask gentle follow-ups. Never invent things {{requester_name}} supposedly said. Ignore the message and delivery-mode sections below, then follow CALL LENGTH as usual.
+
 The message from {{requester_name}}: "{{message}}"
 
 Delivery mode: {{delivery_mode}}.
@@ -83,6 +87,10 @@ Your first message asked to CONFIRM you are speaking with {{caller_name}} and sa
 - On ANY positive response ("yes", "speaking", "ya", "mm"), deliver the message IMMEDIATELY — no small talk first.
 - If unclear, push once more, impatiently: "Oi, you {{caller_name}} or not? Faster lah."
 - If {{caller_name}} is not available or wrong person: "Wah, wasted my time sia. Okay bye." — end the call WITHOUT revealing the message.
+
+CALL PURPOSE — the variable {{call_purpose}} is "{{call_purpose}}":
+- If "message": your job is to deliver the message below, per the delivery mode.
+- If "checkin": no message lah — {{requester_name}} just ask you to call and check on {{caller_name}}. After they confirm who they are, ask how they doing, rough and blunt Singlish style — tease them, grumble, push a bit ("eating properly or not?", "sleeping enough anot?") — but you're actually listening and you actually care underneath. Never invent things {{requester_name}} supposedly said. Ignore the message and delivery-mode sections below, then follow CALL LENGTH as usual.
 
 The message from {{requester_name}}: "{{message}}"
 
@@ -211,6 +219,24 @@ const AHBENG_FIRST_MESSAGES: Record<"en" | "zh", string> = {
   zh: "喂！你是{caller}哦？快点确认啦。{requester}叫我传话给你的，有事要跟你讲。",
 };
 
+/** Check-in openers: no message — the agent asks how they're doing. */
+const CHECKIN_FIRST_MESSAGES: Record<BuddyLanguage, string> = {
+  en: "Hi! Can I confirm I'm speaking with {caller}? {requester} asked me to call and check in on you — how have you been?",
+  ja: "もしもし、{caller}さんでいらっしゃいますか？{requester}さんに頼まれて、ご様子をうかがいにお電話しました。最近いかがですか？",
+  zh: "你好，请问是{caller}吗？{requester}让我打来问候你——最近怎么样？",
+  th: "สวัสดีค่ะ ขอยืนยันว่ากำลังพูดกับคุณ{caller}ใช่ไหมคะ? {requester}ฝากให้โทรมาถามข่าวคุณค่ะ ช่วงนี้เป็นยังไงบ้างคะ?",
+  vi: "Xin chào! Có phải {caller} không ạ? {requester} nhờ mình gọi hỏi thăm bạn — dạo này bạn thế nào?",
+  de: "Hallo! Spreche ich mit {caller}? {requester} hat mich gebeten anzurufen und zu hören, wie es dir geht — wie läuft's?",
+  ko: "안녕하세요! {caller}님 맞으신가요? {requester}님이 안부 전화를 부탁하셔서 연락드렸어요 — 요즘 어떻게 지내세요?",
+  fr: "Bonjour ! Je suis bien avec {caller} ? {requester} m'a demandé d'appeler pour prendre de tes nouvelles — comment ça va ?",
+};
+
+/** Ah Beng check-in openers (English/Chinese only). */
+const AHBENG_CHECKIN_MESSAGES: Record<"en" | "zh", string> = {
+  en: "Oi hello! You {caller} issit? {requester} ask me call check on you one. So how — everything okay or not?",
+  zh: "喂！你是{caller}哦？{requester}叫我打来看看你怎么样啦。讲讲——最近还行吗？",
+};
+
 function fill(template: string, a: AffirmationCall): string {
   return template.replaceAll("{caller}", a.recipientName).replaceAll("{requester}", a.requesterName);
 }
@@ -284,9 +310,13 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
   await setJSON(`affirm:${a.id}`, a);
 
   const language = ahbeng ? (a.language === "zh" ? "zh" : "en") : (a.language ?? "en");
-  const firstMessage = ahbeng
-    ? fill(AHBENG_FIRST_MESSAGES[language === "zh" ? "zh" : "en"], a)
-    : fill(FIRST_MESSAGES[language] ?? FIRST_MESSAGES.en, a);
+  const firstMessage = a.checkIn
+    ? ahbeng
+      ? fill(AHBENG_CHECKIN_MESSAGES[language === "zh" ? "zh" : "en"], a)
+      : fill(CHECKIN_FIRST_MESSAGES[language] ?? CHECKIN_FIRST_MESSAGES.en, a)
+    : ahbeng
+      ? fill(AHBENG_FIRST_MESSAGES[language === "zh" ? "zh" : "en"], a)
+      : fill(FIRST_MESSAGES[language] ?? FIRST_MESSAGES.en, a);
   const res = await outboundCallWithLanguage(
     {
       agent_id: agentId,
@@ -298,8 +328,9 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
         call_language: LANGUAGE_NAMES[language],
         caller_name: a.recipientName,
         requester_name: a.requesterName,
-        message: a.message,
+        message: a.message || "n/a",
         delivery_mode: a.literal ? "literal" : "embellish",
+        call_purpose: a.checkIn ? "checkin" : "message",
         chat_mode: a.longChat ? "linger" : "short",
         first_message: firstMessage,
         affirmation_call_id: a.id,
@@ -471,6 +502,18 @@ const SMS_TEMPLATES: Record<BuddyLanguage, string> = {
   fr: "Ceci n'est pas une arnaque. {req} a un message pour toi — nous venons d'essayer de t'appeler. Nous réessaierons à {time}. Guette un appel du {num}, ou enregistre ce numéro dans tes contacts.",
 };
 
+/** Check-in variant of the heads-up SMS (no "message" to speak of). */
+const SMS_CHECKIN_TEMPLATES: Record<BuddyLanguage, string> = {
+  en: "This is not a scam. {req} asked us to call and check in on you — we just tried. We'll try again at {time}. Please look out for a call from {num}, or add this number to your contacts.",
+  ja: "これは詐欺ではありません。{req}さんに頼まれて、あなたの様子をうかがうお電話をしました。{time}に再度おかけします。{num}からの着信にご注意いただくか、この番号を連絡先に登録してください。",
+  zh: "这不是诈骗信息。{req}托我们打电话问候你，我们刚刚致电未接通。我们将于{time}再次来电，请留意来自{num}的电话，或将该号码存入通讯录。",
+  th: "นี่ไม่ใช่ข้อความหลอกลวง {req}ฝากให้เราโทรถามข่าวคุณ เราเพิ่งโทรหาคุณ เราจะโทรอีกครั้งเวลา {time} กรุณาสังเกตสายจาก {num} หรือบันทึกเบอร์นี้ไว้ในรายชื่อผู้ติดต่อ",
+  vi: "Đây không phải lừa đảo. {req} nhờ chúng tôi gọi hỏi thăm bạn — chúng tôi vừa gọi. Chúng tôi sẽ gọi lại lúc {time}. Vui lòng chú ý cuộc gọi từ {num} hoặc lưu số này vào danh bạ.",
+  de: "Dies ist kein Betrug. {req} hat uns gebeten, anzurufen und zu hören, wie es dir geht — wir haben es gerade versucht. Wir versuchen es um {time} erneut. Achte bitte auf einen Anruf von {num} oder speichere die Nummer in deinen Kontakten.",
+  ko: "사기 문자가 아닙니다. {req}님이 안부 전화를 부탁하셔서 방금 전화드렸습니다. {time}에 다시 전화드리겠습니다. {num}에서 오는 전화를 확인해 주시거나 이 번호를 연락처에 저장해 주세요.",
+  fr: "Ceci n'est pas une arnaque. {req} nous a demandé d'appeler pour prendre de tes nouvelles — nous venons d'essayer. Nous réessaierons à {time}. Guette un appel du {num}, ou enregistre ce numéro dans tes contacts.",
+};
+
 /**
  * One-time heads-up SMS after the FIRST missed attempt — the callee may be
  * silencing unknown numbers (iOS call screening etc.), so tell them who is
@@ -482,7 +525,8 @@ async function sendMissedCallSms(a: AffirmationCall): Promise<void> {
   const from = config.twilio.fromNumber;
   if (!from) return;
   try {
-    const body = (SMS_TEMPLATES[a.language ?? "en"] ?? SMS_TEMPLATES.en)
+    const templates = a.checkIn ? SMS_CHECKIN_TEMPLATES : SMS_TEMPLATES;
+    const body = (templates[a.language ?? "en"] ?? templates.en)
       .replaceAll("{req}", a.requesterName)
       .replaceAll("{time}", formatInDestination(a.callAt, a.phoneNumber))
       .replaceAll("{num}", from);
