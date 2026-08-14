@@ -202,6 +202,13 @@ textarea {
   resize: vertical;
   min-height: 64px;
 }
+/* iOS renders appearance-none date/time fields collapsed — keep them tappable. */
+input[type="datetime-local"],
+input[type="date"],
+input[type="time"] {
+  min-height: 44px;
+  -webkit-appearance: none;
+}
 
 button {
   background: var(--accent);

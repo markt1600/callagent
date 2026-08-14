@@ -852,7 +852,7 @@ export default function Dashboard() {
                 onChange={(e) =>
                   setForm({ ...form, callTiming: e.target.value as "now" | "scheduled" })
                 }
-                style={{ flex: 1 }}
+                style={{ flex: "1 1 170px", minWidth: 170 }}
               >
                 <option value="now">Call now</option>
                 <option value="scheduled">Schedule the call</option>
@@ -862,7 +862,7 @@ export default function Dashboard() {
                   type="datetime-local"
                   value={form.callAt}
                   onChange={(e) => setForm({ ...form, callAt: e.target.value })}
-                  style={{ flex: 1.4 }}
+                  style={{ flex: "1 1 230px", minWidth: 230 }}
                 />
               )}
             </div>
