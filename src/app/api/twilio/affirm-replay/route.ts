@@ -1,11 +1,10 @@
-// TwiML for recorded-message affirmation calls: play the synthesized intro
-// and the requester's own recording, then ask whether they'd like to hear
-// it again — replaying on a yes (see /api/twilio/affirm-replay) until they
-// decline or hang up.
+// Replay loop for recorded-message affirmation calls: after each playback
+// the callee is asked whether they'd like to hear it again. Yes → replay
+// and ask again; no / silence / anything else → warm outro and hang up.
 
 import { NextRequest } from "next/server";
 import { getJSON } from "@/lib/store";
-import { affirmSpeechLocale } from "@/lib/affirm";
+import { affirmSpeechLocale, wantsReplay } from "@/lib/affirm";
 import { buildTwiml, parseTwilioForm, twimlResponse, validateTwilioSignature } from "@/lib/twilioClient";
 import type { AffirmationCall } from "@/lib/types";
 
@@ -22,22 +21,24 @@ export async function POST(request: NextRequest) {
     return twimlResponse(buildTwiml({ playUrls: [], actionPath: "", language: "en-US", hangup: true }));
   }
 
-  // With a replay prompt: play intro + recording, then listen for the answer.
-  if (a.replayPromptUrl) {
+  const speech = params.SpeechResult ?? "";
+  if (wantsReplay(speech, a.language) && a.replayPromptUrl) {
+    // Hear it again, then ask again — loops until a no or a hang-up.
     return twimlResponse(
       buildTwiml({
-        playUrls: [a.introUrl, a.recordingUrl, a.replayPromptUrl].filter(
-          (u): u is string => Boolean(u),
-        ),
+        playUrls: [a.recordingUrl, a.replayPromptUrl],
         actionPath: `/api/twilio/affirm-replay?affirmId=${encodeURIComponent(a.id)}`,
         language: affirmSpeechLocale(a.language),
       }),
     );
   }
 
-  // No prompt clip (synthesis unavailable): classic play-through and hang up.
-  const playUrls = [a.introUrl, a.recordingUrl, a.outroUrl].filter(
-    (u): u is string => Boolean(u),
+  return twimlResponse(
+    buildTwiml({
+      playUrls: a.outroUrl ? [a.outroUrl] : [],
+      actionPath: "",
+      language: "en-US",
+      hangup: true,
+    }),
   );
-  return twimlResponse(buildTwiml({ playUrls, actionPath: "", language: "en-US", hangup: true }));
 }

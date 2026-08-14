@@ -355,6 +355,8 @@ export interface AffirmationCall {
   introUrl?: string;
   /** Synthesized outro clip URL for recorded-message calls */
   outroUrl?: string;
+  /** Synthesized "hear it again?" prompt URL for recorded-message calls */
+  replayPromptUrl?: string;
   twilioCallSid?: string;
   /** Next scheduled attempt (UTC ISO) */
   callAt: string;

@@ -80,6 +80,54 @@ const RECORDED_INTROS: Record<BuddyLanguage, string> = {
   ko: "안녕하세요, {caller}님. {requester}님을 대신해 전화드렸어요. {requester}님이 {caller}님만을 위해 메시지를 녹음했어요. 들려드릴게요.",
   fr: "Bonjour {caller}. J'appelle de la part de {requester}, et {requester} a enregistré un message rien que pour toi. Le voici.",
 };
+/** Asked after each playback of a recorded message. */
+const REPLAY_PROMPTS: Record<BuddyLanguage, string> = {
+  en: "Would you like to hear it again?",
+  ja: "もう一度お聞きになりますか？",
+  zh: "要再听一遍吗？",
+  th: "อยากฟังอีกครั้งไหมคะ?",
+  vi: "Bạn có muốn nghe lại không?",
+  de: "Möchtest du es noch einmal hören?",
+  ko: "다시 한 번 들으시겠어요?",
+  fr: "Veux-tu l'écouter encore une fois ?",
+};
+
+/** Twilio speech-recognition locale per call language. */
+export function affirmSpeechLocale(language: BuddyLanguage | undefined): string {
+  const map: Record<BuddyLanguage, string> = {
+    en: "en-US",
+    ja: "ja-JP",
+    zh: "cmn-Hans-CN",
+    th: "th-TH",
+    vi: "vi-VN",
+    de: "de-DE",
+    ko: "ko-KR",
+    fr: "fr-FR",
+  };
+  return map[language ?? "en"] ?? "en-US";
+}
+
+/** Affirmative-response keywords per language for the replay question. */
+const YES_WORDS: Record<BuddyLanguage, string[]> = {
+  en: ["yes", "yeah", "yep", "sure", "again", "repeat", "please", "one more", "ok", "okay"],
+  ja: ["はい", "うん", "もう一度", "もういちど", "お願い", "ええ"],
+  zh: ["再", "好", "要", "嗯", "可以", "行"],
+  th: ["ครับ", "ค่ะ", "อีก", "ใช่", "เอา", "ฟัง"],
+  vi: ["có", "lại", "vâng", "ừ", "dạ", "nghe"],
+  de: ["ja", "nochmal", "noch einmal", "wieder", "bitte", "gerne", "klar"],
+  ko: ["네", "예", "다시", "응", "그래", "좋아"],
+  fr: ["oui", "encore", "répète", "volontiers", "s'il te", "s'il vous", "ouais"],
+};
+
+/** Did the callee ask to hear the recording again? */
+export function wantsReplay(speech: string, language: BuddyLanguage | undefined): boolean {
+  const said = speech.toLowerCase();
+  if (!said.trim()) return false;
+  const words = YES_WORDS[language ?? "en"] ?? YES_WORDS.en;
+  // English affirmatives are accepted in any language mode (mixed speech).
+  return [...words, ...YES_WORDS.en].some((w) => said.includes(w));
+}
+
 const RECORDED_OUTROS: Record<BuddyLanguage, string> = {
   en: "That was the message from {requester}. Take care — goodbye!",
   ja: "以上、{requester}さんからのメッセージでした。それでは、失礼いたします。",
@@ -182,6 +230,14 @@ async function placeRecordedCall(a: AffirmationCall): Promise<void> {
         "prerender",
       );
       a.outroUrl = outro.audioUrl;
+    }
+    if (!a.replayPromptUrl) {
+      const prompt = await getOrSynthesize(
+        REPLAY_PROMPTS[language] ?? REPLAY_PROMPTS.en,
+        "en",
+        "prerender",
+      );
+      a.replayPromptUrl = prompt.audioUrl;
     }
   } catch (err) {
     console.error(`Affirmation intro/outro synthesis failed for ${a.id} (continuing):`, err);
