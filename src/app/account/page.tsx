@@ -131,6 +131,7 @@ export default function AccountPage() {
       </h1>
       <nav className="tabs">
         <a href="/">Reservations</a>
+        <a href="/buddy">Buddy Call</a>
         <a className="active">Account</a>
       </nav>
 

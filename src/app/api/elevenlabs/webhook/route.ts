@@ -10,9 +10,16 @@ import { sendConfirmation } from "@/lib/notify";
 import { handleNoAnswer } from "@/lib/retry";
 import { backfillTranslations } from "@/lib/callEngine";
 import { analyzeOutcome } from "@/lib/analyzeCall";
+import {
+  BUDDY_MAX_ATTEMPTS,
+  BUDDY_RETRY_SECONDS,
+  dispatchBuddyCall,
+  rescheduleBuddy,
+  transcriptMentions,
+} from "@/lib/buddy";
 
 export const maxDuration = 120;
-import type { CallSession, ReservationRequest } from "@/lib/types";
+import type { BuddyCall, CallSession, ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -62,6 +69,25 @@ export async function POST(request: NextRequest) {
   // No-answer / failed dial in Agent mode: mark the call and run the retry
   // policy (up to 3 attempts inside calling hours).
   if (payload.type === "call_initiation_failure" && payload.data) {
+    // Buddy calls first (exact conversation match): retry every 30 seconds,
+    // up to 5 tries, until the user picks up.
+    const buddies = await listJSON<BuddyCall>("buddy:");
+    const buddy = buddies.find(
+      (b) => b.lastConversationId && b.lastConversationId === payload.data!.conversation_id,
+    );
+    if (buddy) {
+      if (buddy.status !== "calling") return NextResponse.json({ ok: true });
+      if (buddy.attempts >= BUDDY_MAX_ATTEMPTS) {
+        buddy.status = "failed";
+        buddy.error = `No answer after ${BUDDY_MAX_ATTEMPTS} attempts`;
+        await setJSON(`buddy:${buddy.id}`, buddy);
+      } else {
+        await new Promise((r) => setTimeout(r, BUDDY_RETRY_SECONDS * 1000));
+        await dispatchBuddyCall(buddy);
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     const calls = await listJSON<CallSession>("call:");
     const call =
       calls.find((c) => c.elevenLabsConversationId === payload.data!.conversation_id) ??
@@ -82,6 +108,34 @@ export async function POST(request: NextRequest) {
   }
 
   const data = payload.data;
+
+  // Buddy Call transcript: detect codewords in the USER's lines only (the
+  // agent speaks both codewords in its briefing) and schedule the call-back.
+  const buddyCallId = data.conversation_initiation_client_data?.dynamic_variables?.buddy_call_id;
+  if (buddyCallId) {
+    const buddy = await getJSON<BuddyCall>(`buddy:${buddyCallId}`);
+    if (buddy) {
+      buddy.turns = (data.transcript ?? [])
+        .filter((t) => t.message)
+        .map((t) => ({
+          ts: "",
+          speaker: t.role === "agent" ? ("agent" as const) : ("restaurant" as const),
+          text: t.message!,
+        }));
+      buddy.summary = data.analysis?.transcript_summary;
+      const userTurns = buddy.turns.filter((t) => t.speaker !== "agent");
+      if (transcriptMentions(userTurns, buddy.codeword30)) {
+        await rescheduleBuddy(buddy, 30);
+      } else if (transcriptMentions(userTurns, buddy.codeword60)) {
+        await rescheduleBuddy(buddy, 60);
+      } else {
+        buddy.status = "completed";
+        await setJSON(`buddy:${buddy.id}`, buddy);
+      }
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   const reservationId =
     data.conversation_initiation_client_data?.dynamic_variables?.reservation_id;
 

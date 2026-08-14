@@ -6,7 +6,7 @@ export default function BottomNav({
   active,
   isAdmin,
 }: {
-  active: "reservations" | "account" | "admin";
+  active: "reservations" | "buddy" | "account" | "admin";
   isAdmin?: boolean;
 }) {
   return (
@@ -14,6 +14,10 @@ export default function BottomNav({
       <a href="/" className={active === "reservations" ? "active" : ""}>
         <span className="icon">📞</span>
         Reservations
+      </a>
+      <a href="/buddy" className={active === "buddy" ? "active" : ""}>
+        <span className="icon">🤙</span>
+        Buddy Call
       </a>
       <a href="/account" className={active === "account" ? "active" : ""}>
         <span className="icon">👤</span>

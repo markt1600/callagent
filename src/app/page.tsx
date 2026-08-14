@@ -411,8 +411,8 @@ export default function Dashboard() {
           Agentic <em>Concierge</em>
         </h1>
         <p className="sub">
-          The AI concierge agent that crosses the line from virtual to reality — it phones
-          real restaurants in Japan and Singapore and books your table.
+          The AI concierge agent that crosses the line from virtual to reality — real phone
+          calls, placed for you.
         </p>
         <div className="panel">
           {gate === "loading" ? (
@@ -460,13 +460,14 @@ export default function Dashboard() {
         Agentic <em>Concierge</em>
       </h1>
       <p className="sub">
-        The AI concierge agent that crosses the line from virtual to reality — enter the
-        details, and it phones the restaurant and books your table.
+        The AI concierge agent that crosses the line from virtual to reality — real phone
+        calls, placed for you.
       </p>
 
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center", margin: "0.6rem 0 1.2rem" }}>
         <nav className="tabs" style={{ margin: 0 }}>
           <a className="active">Reservations</a>
+          <a href="/buddy">Buddy Call</a>
           <a href="/account">Account</a>
         </nav>
         {me && (

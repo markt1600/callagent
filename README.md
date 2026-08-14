@@ -117,6 +117,12 @@ src/
 - Buying a local caller-ID number (JP or SG) requires identity documentation under local telecom rules; calls also work from a US/other number, but a local number materially improves answer rates.
 - Recording calls has consent requirements — this app stores transcripts, not audio recordings, of the counterparty.
 
+### Buddy Call
+
+A scheduled, friendly check-in call to **your own phone** — a built-in excuse to step out of a date or meeting. The buddy ("M") calls at the prescribed time (retrying every 30 seconds, up to 5 tries, until you pick up), opens with a casual check-in, and briefs you on your outs: **start describing a situation** ("wait, the server crashed *again*?") and M plays along convincingly until you hang up, or **work a codeword into the conversation** — each buddy call gets two easy-to-pronounce codewords, one for a call-back in 30 minutes and one for 60 — and M wraps up naturally while the system schedules the call-back. Buddy calls cost the same per-destination credits as any other call.
+
+Setup: create a **second** ElevenLabs Conversational AI agent, paste the prompt from `src/lib/buddy.ts` → `buddyPromptTemplate()`, set its **First message** to `{{first_message}}`, attach the same imported Twilio number, keep the same post-call webhook (both `post_call_transcription` and `call_initiation_failure` events), and set `ELEVENLABS_BUDDY_AGENT_ID`.
+
 ### Accounts & guest mode
 
 - **Google sign-in** is optional. Create an OAuth **Web application** client in Google Cloud Console (APIs & Services → Credentials), add your deployment origin and `http://localhost:3000` under **Authorized JavaScript origins** (no redirect URI needed), then set `NEXT_PUBLIC_GOOGLE_CLIENT_ID` and `AUTH_SECRET` (`openssl rand -hex 32`). Without them, the app runs in guest mode only.

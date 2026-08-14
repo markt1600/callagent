@@ -20,7 +20,7 @@ export async function GET() {
     "FN:Agent M",
     "ORG:Agentic Concierge",
     `TEL;TYPE=CELL,VOICE:${number}`,
-    "NOTE:Agentic Concierge - this number places your restaurant reservation calls.",
+    "NOTE:Agentic Concierge - your concierge calls come from this number.",
     "END:VCARD",
     "",
   ].join("\r\n");

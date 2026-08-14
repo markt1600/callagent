@@ -8,8 +8,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listJSON, setJSON } from "@/lib/store";
 import { dispatchCall } from "@/lib/dispatch";
+import { dispatchBuddyCall } from "@/lib/buddy";
 import { isWithinCallWindow, nextCallWindowTime } from "@/lib/callWindow";
-import type { ReservationRequest } from "@/lib/types";
+import type { BuddyCall, ReservationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -40,5 +41,19 @@ export async function GET(request: NextRequest) {
     dispatched.push(`${reservation.id}:${call.status}`);
   }
 
-  return NextResponse.json({ checked: reservations.length, due: due.length, dispatched });
+  // Buddy calls ring the user's own phone — no calling-window restriction.
+  const buddies = await listJSON<BuddyCall>("buddy:");
+  const dueBuddies = buddies.filter(
+    (b) => b.status === "scheduled" && new Date(b.callAt).getTime() <= now,
+  );
+  for (const buddy of dueBuddies) {
+    const result = await dispatchBuddyCall(buddy);
+    dispatched.push(`buddy-${buddy.id}:${result.status}`);
+  }
+
+  return NextResponse.json({
+    checked: reservations.length + buddies.length,
+    due: due.length + dueBuddies.length,
+    dispatched,
+  });
 }

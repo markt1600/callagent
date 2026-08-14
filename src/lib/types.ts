@@ -247,6 +247,41 @@ export interface CallSession {
   languageProbed?: boolean;
 }
 
+/**
+ * Buddy Call: a scheduled friendly check-in call to the user's own phone —
+ * a built-in excuse to step out of a date or meeting. The agent plays along
+ * with any "situation" the user starts describing, and two codewords let
+ * the user schedule a call-back (+30 or +60 minutes) mid-conversation.
+ */
+export interface BuddyCall {
+  id: string;
+  createdAt: string;
+  /** Owning user (Google sub) — absent for guest-mode buddy calls */
+  userId?: string;
+  /** The user's own number to ring, E.164 */
+  phoneNumber: string;
+  /** What the buddy should call the user */
+  name: string;
+  /** When to ring (ISO) */
+  callAt: string;
+  /** Optional setting so the call sounds right (e.g. "first date at a wine bar") */
+  scenario?: string;
+  /** Worked into conversation → call back in 30 minutes */
+  codeword30: string;
+  /** Worked into conversation → call back in 60 minutes */
+  codeword60: string;
+  status: "scheduled" | "calling" | "completed" | "failed" | "cancelled";
+  /** Dial attempts for the current scheduled time (max 5, 30s apart) */
+  attempts: number;
+  /** Conversation id of the most recent dial (webhook matching) */
+  lastConversationId?: string;
+  /** Set when a codeword triggered a rescheduled call-back */
+  rescheduledFor?: string;
+  turns?: CallTurn[];
+  summary?: string;
+  error?: string;
+}
+
 /** Persistent phrase-library entry: one synthesized audio file, reused forever. */
 export interface LibraryEntry {
   /** sha256 of language|voiceId|modelId|normalizedText */
