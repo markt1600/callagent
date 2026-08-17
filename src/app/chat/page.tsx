@@ -33,7 +33,7 @@ export default function ChatPage() {
     name: "",
     persona: "standard",
     language: "en",
-    mode: "ptt" as "ptt" | "handsfree" | "text",
+    mode: "handsfree" as "ptt" | "handsfree" | "text",
   });
   const [phase, setPhase] = useState<"idle" | "connecting" | "live" | "ended">("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -294,8 +294,8 @@ export default function ChatPage() {
               setForm({ ...form, mode: e.target.value as "ptt" | "handsfree" | "text" })
             }
           >
-            <option value="ptt">Push to talk — hold to speak, release to reply (fastest)</option>
-            <option value="handsfree">Hands-free — just talk, it listens continuously</option>
+            <option value="handsfree">Hands-free — just talk, like a real call</option>
+            <option value="ptt">Push to talk — hold to speak (better in noisy places)</option>
             <option value="text">Text — type and read replies</option>
           </select>
           <button onClick={begin}>💬 Begin chat</button>
