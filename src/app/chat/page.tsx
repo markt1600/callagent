@@ -143,13 +143,13 @@ export default function ChatPage() {
       if (!res.ok) throw new Error(data.error || `Could not start the chat (${res.status})`);
 
       const textOnly = form.mode === "text";
-      convo.current = await Conversation.startSession({
+      const session = (overrides: Record<string, unknown>) => ({
         conversationToken: data.token as string,
-        connectionType: "webrtc",
+        connectionType: "webrtc" as const,
         dynamicVariables: data.dynamicVariables as Record<string, string>,
-        overrides: { agent: { language: data.language as Language } },
+        overrides,
         textOnly,
-        onStatusChange: ({ status }) => {
+        onStatusChange: ({ status }: { status: string }) => {
           if (status === "connected") {
             setPhase("live");
             // Push-to-talk starts with the mic closed.
@@ -160,13 +160,32 @@ export default function ChatPage() {
           }
           if (status === "disconnected") setPhase((p) => (p === "idle" ? p : "ended"));
         },
-        onModeChange: ({ mode }) => setSpeaking(mode === "speaking"),
-        onMessage: ({ message, source }) => {
+        onModeChange: ({ mode }: { mode: string }) => setSpeaking(mode === "speaking"),
+        onMessage: ({ message, source }: { message: string; source: string }) => {
           if (!message?.trim()) return;
           setTurns((t) => [...t, { role: source === "user" ? "you" : "agent", text: message }]);
         },
-        onError: (msg) => setError(msg),
+        onError: (msg: string) => setError(msg),
       });
+
+      const language = data.language as Language;
+      try {
+        // Lean chat prompt = far less to process before the first word.
+        convo.current = await Conversation.startSession(
+          session({
+            agent: {
+              language,
+              prompt: { prompt: data.chatPrompt as string },
+              firstMessage: data.firstMessage as string,
+            },
+          }),
+        );
+      } catch (overrideErr) {
+        // The agent may not permit prompt/first-message overrides — fall back
+        // to its dashboard prompt rather than failing the chat.
+        console.warn("Prompt override rejected, retrying without it:", overrideErr);
+        convo.current = await Conversation.startSession(session({ agent: { language } }));
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       // The most common first-run failure by far.
