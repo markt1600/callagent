@@ -33,16 +33,62 @@ export default function ChatPage() {
     name: "",
     persona: "standard",
     language: "en",
-    mode: "voice" as "voice" | "text",
+    mode: "ptt" as "ptt" | "handsfree" | "text",
   });
   const [phase, setPhase] = useState<"idle" | "connecting" | "live" | "ended">("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [speaking, setSpeaking] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [talking, setTalking] = useState(false);
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
   const convo = useRef<Conversation | null>(null);
   const transcriptEnd = useRef<HTMLDivElement | null>(null);
+  const activityPing = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Push-to-talk: the mic stays closed between turns. Holding opens it and
+  // pings "user is active" so the agent won't talk over you; releasing closes
+  // it again, which gives the agent clean digital silence to end the turn on.
+  const startTalking = useCallback(() => {
+    if (!convo.current || phase !== "live") return;
+    setTalking(true);
+    convo.current.setMicMuted(false);
+    convo.current.sendUserActivity();
+    activityPing.current ??= setInterval(() => convo.current?.sendUserActivity(), 1500);
+  }, [phase]);
+
+  const stopTalking = useCallback(() => {
+    if (activityPing.current) {
+      clearInterval(activityPing.current);
+      activityPing.current = null;
+    }
+    if (!convo.current) return;
+    setTalking(false);
+    convo.current.setMicMuted(true);
+  }, []);
+
+  // Spacebar as the push-to-talk key.
+  useEffect(() => {
+    if (phase !== "live" || form.mode !== "ptt") return;
+    const isTyping = (el: EventTarget | null) =>
+      el instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || e.repeat || isTyping(e.target)) return;
+      e.preventDefault();
+      startTalking();
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || isTyping(e.target)) return;
+      e.preventDefault();
+      stopTalking();
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  }, [phase, form.mode, startTalking, stopTalking]);
 
   useEffect(() => {
     fetch("/api/me")
@@ -69,6 +115,7 @@ export default function ChatPage() {
   // Never leave a live session running behind a closed page.
   useEffect(() => {
     return () => {
+      if (activityPing.current) clearInterval(activityPing.current);
       convo.current?.endSession().catch(() => {});
       convo.current = null;
     };
@@ -103,7 +150,14 @@ export default function ChatPage() {
         overrides: { agent: { language: data.language as Language } },
         textOnly,
         onStatusChange: ({ status }) => {
-          if (status === "connected") setPhase("live");
+          if (status === "connected") {
+            setPhase("live");
+            // Push-to-talk starts with the mic closed.
+            if (form.mode === "ptt") {
+              convo.current?.setMicMuted(true);
+              setTalking(false);
+            }
+          }
           if (status === "disconnected") setPhase((p) => (p === "idle" ? p : "ended"));
         },
         onModeChange: ({ mode }) => setSpeaking(mode === "speaking"),
@@ -126,10 +180,15 @@ export default function ChatPage() {
   }, [form]);
 
   async function end() {
+    if (activityPing.current) {
+      clearInterval(activityPing.current);
+      activityPing.current = null;
+    }
     await convo.current?.endSession().catch(() => {});
     convo.current = null;
     setPhase("ended");
     setSpeaking(false);
+    setTalking(false);
   }
 
   function toggleMute() {
@@ -209,9 +268,12 @@ export default function ChatPage() {
           <label>How do you want to chat?</label>
           <select
             value={form.mode}
-            onChange={(e) => setForm({ ...form, mode: e.target.value as "voice" | "text" })}
+            onChange={(e) =>
+              setForm({ ...form, mode: e.target.value as "ptt" | "handsfree" | "text" })
+            }
           >
-            <option value="voice">Voice — speak and listen (needs a microphone)</option>
+            <option value="ptt">Push to talk — hold to speak, release to reply (fastest)</option>
+            <option value="handsfree">Hands-free — just talk, it listens continuously</option>
             <option value="text">Text — type and read replies</option>
           </select>
           <button onClick={begin}>💬 Begin chat</button>
@@ -246,9 +308,11 @@ export default function ChatPage() {
               <p className="sub">
                 {phase === "connecting"
                   ? "Setting up the connection…"
-                  : form.mode === "voice"
-                    ? "Say hello — they can hear you."
-                    : "Type a message below to get started."}
+                  : form.mode === "ptt"
+                    ? "Hold the button (or the spacebar) and say hello."
+                    : form.mode === "handsfree"
+                      ? "Say hello — they can hear you."
+                      : "Type a message below to get started."}
               </p>
             )}
             {turns.map((t, i) => (
@@ -279,8 +343,37 @@ export default function ChatPage() {
             </div>
           )}
 
+          {form.mode === "ptt" && phase === "live" && (
+            <>
+              <button
+                type="button"
+                className={talking ? "" : "secondary"}
+                onPointerDown={(e) => {
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  startTalking();
+                }}
+                onPointerUp={stopTalking}
+                onPointerCancel={stopTalking}
+                onContextMenu={(e) => e.preventDefault()}
+                style={{
+                  width: "100%",
+                  marginTop: "0.9rem",
+                  minHeight: 64,
+                  fontSize: "0.95rem",
+                  touchAction: "none",
+                  userSelect: "none",
+                }}
+              >
+                {talking ? "🎙 Listening — release to send" : "🎤 Hold to talk"}
+              </button>
+              <p className="sub" style={{ margin: "0.4rem 0 0", textAlign: "center" }}>
+                Or hold the <strong>spacebar</strong>.
+              </p>
+            </>
+          )}
+
           <div className="row">
-            {form.mode === "voice" && phase === "live" && (
+            {form.mode === "handsfree" && phase === "live" && (
               <button className="secondary" onClick={toggleMute}>
                 {muted ? "🔇 Unmute" : "🎙 Mute"}
               </button>
