@@ -195,6 +195,7 @@ export default function BuddyPage() {
         <a href="/">Reservations</a>
         <a className="active">Bail Out Call</a>
         <a href="/affirm">Affirmation Call</a>
+        <a href="/chat">Live Chat</a>
         <a href="/account">Account</a>
       </nav>
       <p className="sub">

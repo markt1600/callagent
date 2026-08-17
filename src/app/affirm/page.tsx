@@ -327,6 +327,7 @@ export default function AffirmPage() {
         <a href="/">Reservations</a>
         <a href="/buddy">Bail Out Call</a>
         <a className="active">Affirmation Call</a>
+        <a href="/chat">Live Chat</a>
         <a href="/account">Account</a>
       </nav>
       <p className="sub">

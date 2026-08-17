@@ -521,6 +521,7 @@ export default function Dashboard() {
           <a className="active">Reservations</a>
           <a href="/buddy">Bail Out Call</a>
           <a href="/affirm">Affirmation Call</a>
+          <a href="/chat">Live Chat</a>
           <a href="/account">Account</a>
         </nav>
         {me && (

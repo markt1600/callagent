@@ -234,6 +234,7 @@ export default function AccountPage() {
         <a href="/">Reservations</a>
         <a href="/buddy">Bail Out Call</a>
         <a href="/affirm">Affirmation Call</a>
+        <a href="/chat">Live Chat</a>
         <a className="active">Account</a>
       </nav>
 
