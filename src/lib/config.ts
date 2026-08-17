@@ -24,6 +24,12 @@ export const config = {
     affirmationAgentId: process.env.ELEVENLABS_AFFIRMATION_AGENT_ID || "",
     /** Ah Beng persona agent for Affirmation Calls (male, Singlish, en/zh) */
     ahbengAgentId: process.env.ELEVENLABS_AHBENG_AGENT_ID || "",
+    /**
+     * Optional faster LLM for latency-sensitive conversations (bail out and
+     * affirmation calls, and live chat). Requires the "LLM" override to be
+     * enabled on those agents. Unset = each agent's dashboard model.
+     */
+    fastLlm: process.env.ELEVENLABS_FAST_LLM || process.env.ELEVENLABS_CHAT_LLM || "",
     /** Phone number imported into ElevenLabs from Twilio (Agent mode) */
     agentPhoneNumberId: process.env.ELEVENLABS_AGENT_PHONE_NUMBER_ID || "",
     /** HMAC secret for post-call webhooks */

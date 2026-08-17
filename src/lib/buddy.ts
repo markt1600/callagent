@@ -191,9 +191,18 @@ export async function outboundCallWithLanguage(
       body: JSON.stringify({ ...body, conversation_initiation_client_data: data }),
     });
 
+  // Force the language per call, and — when configured — a faster LLM than
+  // the agent's dashboard model, which is the single biggest lever on
+  // response latency. The prompt itself is left alone: phone calls need the
+  // full screening / voicemail / delivery instructions.
+  const agentOverride: Record<string, unknown> = { language };
+  if (config.elevenlabs.fastLlm) {
+    agentOverride.prompt = { llm: config.elevenlabs.fastLlm };
+  }
+
   let res = await attempt({
     ...clientData,
-    conversation_config_override: { agent: { language } },
+    conversation_config_override: { agent: agentOverride },
   });
   if (!res.ok && res.status < 500) {
     const errText = await res.text();
