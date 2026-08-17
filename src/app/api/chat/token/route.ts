@@ -99,6 +99,10 @@ export async function POST(request: NextRequest) {
       language,
       firstMessage,
       chatPrompt: chatPrompt(ahbeng, name),
+      // Optional: run live chats on a faster model than the agent's default
+      // (phone calls keep the dashboard model). Set ELEVENLABS_CHAT_LLM to
+      // the exact model name shown in the agent's LLM dropdown.
+      chatLlm: process.env.ELEVENLABS_CHAT_LLM || undefined,
       dynamicVariables: {
         // The user is both the person being spoken to AND the requester —
         // the prompts read that as a direct live chat, not a relayed message.

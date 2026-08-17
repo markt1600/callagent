@@ -175,7 +175,10 @@ export default function ChatPage() {
           session({
             agent: {
               language,
-              prompt: { prompt: data.chatPrompt as string },
+              prompt: {
+                prompt: data.chatPrompt as string,
+                ...(data.chatLlm ? { llm: data.chatLlm as string } : {}),
+              },
               firstMessage: data.firstMessage as string,
             },
           }),
