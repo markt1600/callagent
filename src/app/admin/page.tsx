@@ -25,6 +25,16 @@ export default function AdminPage() {
   const [access, setAccess] = useState<"loading" | "allowed" | "denied">("loading");
   const [costs, setCosts] = useState<Array<{ prefix: string; cost: number }>>([]);
   const [costsSaved, setCostsSaved] = useState(false);
+  const [users, setUsers] = useState<
+    Array<{
+      id: string;
+      email: string;
+      name: string;
+      createdAt?: string;
+      credits: number;
+      contactPhone: string | null;
+    }>
+  >([]);
 
   useEffect(() => {
     setPin(sessionStorage.getItem("adminPin"));
@@ -48,6 +58,18 @@ export default function AdminPage() {
             .map(([prefix, cost]) => ({ prefix, cost })),
         );
       }
+    } catch {
+      /* transient */
+    }
+  }, []);
+
+  const loadUsers = useCallback(async () => {
+    const stored = sessionStorage.getItem("adminPin");
+    if (!stored) return;
+    try {
+      const res = await fetch("/api/admin/users", { headers: { "x-admin-pin": stored } });
+      const data = await res.json();
+      if (res.ok && data.users) setUsers(data.users);
     } catch {
       /* transient */
     }
@@ -95,8 +117,9 @@ export default function AdminPage() {
     if (pin) {
       refresh();
       loadCosts();
+      loadUsers();
     }
-  }, [pin, refresh, loadCosts]);
+  }, [pin, refresh, loadCosts, loadUsers]);
 
   function unlock() {
     if (!pinInput.trim()) return;
@@ -308,6 +331,38 @@ export default function AdminPage() {
               </span>
             )}
           </div>
+        </div>
+      )}
+
+      {access === "allowed" && pin && (
+        <div className="panel">
+          <h2>Users</h2>
+          <p className="sub" style={{ marginTop: 0 }}>
+            Every account that has signed in with Google ({users.length} total).
+          </p>
+          {users.length === 0 ? (
+            <p className="sub">No signed-in users yet.</p>
+          ) : (
+            users.map((u) => (
+              <div key={u.id} className="res-item" style={{ cursor: "default" }}>
+                <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
+                  <div>
+                    <strong>{u.name || u.email}</strong>
+                    <div className="meta">
+                      {u.email}
+                      {u.contactPhone ? ` · ${u.contactPhone}` : ""}
+                      {u.createdAt
+                        ? ` · joined ${new Date(u.createdAt).toLocaleDateString()}`
+                        : ""}
+                    </div>
+                  </div>
+                  <span className="sub" style={{ margin: 0, flexShrink: 0 }}>
+                    {u.credits.toLocaleString()} credits
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 

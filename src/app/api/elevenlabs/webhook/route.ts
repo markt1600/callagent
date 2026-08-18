@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
     const { updateMemoryFromConversation } = await import("@/lib/memory");
     await updateMemoryFromConversation(
       dynVars.chat_user_id,
-      "self",
+      dynVars.chat_person_key || "self",
       dynVars.caller_name ?? "the user",
       turns,
     );

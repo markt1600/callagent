@@ -8,7 +8,13 @@ import GoogleSignIn from "../components/GoogleSignIn";
 import BottomNav from "../components/BottomNav";
 import PhoneInput from "../components/PhoneInput";
 import { countryForPrefix } from "@/lib/phone";
-import type { CreditTransaction, Friend, SavedRestaurant, UserProfile } from "@/lib/types";
+import type {
+  CreditTransaction,
+  Friend,
+  PersonMemory,
+  SavedRestaurant,
+  UserProfile,
+} from "@/lib/types";
 
 interface MeResponse {
   user: UserProfile | null;
@@ -56,6 +62,7 @@ export default function AccountPage() {
   const [friendEditingId, setFriendEditingId] = useState<string | null>(null);
   const [friendEdit, setFriendEdit] = useState({ name: "", phoneNumber: "", language: "" });
   const [friendError, setFriendError] = useState<string | null>(null);
+  const [memories, setMemories] = useState<PersonMemory[]>([]);
 
   async function addFriend() {
     setFriendError(null);
@@ -134,6 +141,8 @@ export default function AccountPage() {
         setTransactions(tx.transactions ?? []);
         const fr = await fetch("/api/me/friends").then((r) => r.json());
         setFriends(fr.friends ?? []);
+        const mem = await fetch("/api/me/memory").then((r) => r.json());
+        setMemories(mem.memories ?? []);
       }
     } catch {
       /* transient */
@@ -639,6 +648,52 @@ export default function AccountPage() {
               + Add friend
             </button>
             {friendError && <p className="error">{friendError}</p>}
+          </div>
+
+          <div className="panel">
+            <h2>Agent memory</h2>
+            <p className="sub" style={{ marginTop: 0 }}>
+              What the agents remember about each person from their calls and chats — a
+              short rolling summary, never the full transcripts. Erasing one is permanent.
+            </p>
+            {memories.length === 0 ? (
+              <p className="sub">Nothing remembered yet — memories build up as calls and chats happen.</p>
+            ) : (
+              memories.map((m) => (
+                <div key={m.personKey} className="res-item" style={{ cursor: "default" }}>
+                  <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
+                    <div>
+                      <strong>{m.personName || (m.personKey === "self" ? "You" : m.personKey)}</strong>
+                      <div className="meta">
+                        {m.personKey === "self" ? "you (live chat)" : `+${m.personKey}`}
+                        {" · "}
+                        {m.conversationCount} conversation{m.conversationCount === 1 ? "" : "s"}
+                        {m.lastConversationAt
+                          ? ` · last ${new Date(m.lastConversationAt).toLocaleDateString()}`
+                          : ""}
+                      </div>
+                    </div>
+                    <button
+                      className="delete-btn"
+                      title="Erase this memory"
+                      onClick={async () => {
+                        if (!window.confirm(`Erase everything remembered about ${m.personName || "this person"}? This cannot be undone.`)) return;
+                        await fetch(`/api/me/memory?key=${encodeURIComponent(m.personKey)}`, {
+                          method: "DELETE",
+                        });
+                        setMemories((list) => list.filter((x) => x.personKey !== m.personKey));
+                      }}
+                      style={{ fontSize: "1.2rem", color: "var(--err)", flexShrink: 0 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p style={{ margin: "0.5rem 0 0", fontSize: "0.85rem", whiteSpace: "pre-wrap" }}>
+                    {m.summary}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </>
       )}

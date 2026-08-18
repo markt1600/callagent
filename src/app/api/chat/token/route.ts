@@ -10,7 +10,8 @@ import { getSessionUser } from "@/lib/auth";
 import { BUDDY_LANGUAGES, LANGUAGE_NAMES } from "@/lib/buddy";
 import { config, requireEnv } from "@/lib/config";
 import { loadMemory } from "@/lib/memory";
-import type { BuddyLanguage } from "@/lib/types";
+import { getJSON } from "@/lib/store";
+import type { BuddyLanguage, Friend } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -81,7 +82,29 @@ Never end the chat yourself — stay for as long as they want. If they say goodb
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const name = String(body.name ?? "").trim().slice(0, 60);
+    const user = await getSessionUser();
+
+    // Who is chatting: the account owner ("self"), or one of THEIR saved
+    // friends — in which case the chat binds to that friend's memory file,
+    // the same one their affirmation calls use. The friend must belong to
+    // the signed-in account (server-checked; the id is never trusted alone).
+    let name = String(body.name ?? "").trim().slice(0, 60);
+    let personKey = "self";
+    let friendLanguage: BuddyLanguage | undefined;
+    if (body.friendId) {
+      if (!user) {
+        return NextResponse.json(
+          { error: "Sign in to chat as one of your friends" },
+          { status: 401 },
+        );
+      }
+      const fid = String(body.friendId).replace(/\D/g, "");
+      const friend = await getJSON<Friend>(`userfriend:${user.id}:${fid}`);
+      if (!friend) return NextResponse.json({ error: "Friend not found" }, { status: 404 });
+      name = friend.name;
+      personKey = fid;
+      friendLanguage = friend.language;
+    }
     if (!name) {
       return NextResponse.json({ error: "Your name is required" }, { status: 400 });
     }
@@ -94,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     const requested = BUDDY_LANGUAGES.includes(body.language as BuddyLanguage)
       ? (body.language as BuddyLanguage)
-      : "en";
+      : (friendLanguage ?? "en");
     // Ah Beng only speaks English and Chinese.
     const language: BuddyLanguage = ahbeng ? (requested === "zh" ? "zh" : "en") : requested;
 
@@ -104,11 +127,10 @@ export async function POST(request: NextRequest) {
         : (CHAT_FIRST_MESSAGES[language] ?? CHAT_FIRST_MESSAGES.en)
     ).replaceAll("{name}", name);
 
-    // Memory: signed-in users get their own rolling memory file (read here,
-    // written by the post-call webhook). Guests have no stable identity —
-    // nothing is read or written for them.
-    const user = await getSessionUser();
-    const mem = user ? await loadMemory(user.id, "self") : null;
+    // Memory: the selected person's rolling memory file (read here, written
+    // by the post-call webhook). Guests have no stable identity — nothing is
+    // read or written for them.
+    const mem = user ? await loadMemory(user.id, personKey) : null;
 
     const res = await fetch(
       `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
@@ -145,6 +167,7 @@ export async function POST(request: NextRequest) {
         // Routes the post-call webhook to the memory writer (empty = guest,
         // transcript is dropped and nothing is remembered).
         chat_user_id: user?.id ?? "",
+        chat_person_key: personKey,
         // Empty: this isn't a scheduled affirmation call, so the post-call
         // webhook has nothing to attach the transcript to.
         affirmation_call_id: "",

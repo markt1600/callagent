@@ -72,6 +72,7 @@ Rewrite the memory file. Rules: at most 130 words; plain factual sentences; keep
     const memory: PersonMemory = {
       summary: block.text.trim().slice(0, MAX_SUMMARY_CHARS),
       personName,
+      personKey,
       conversationCount: (prior?.conversationCount ?? 0) + 1,
       lastConversationAt: new Date().toISOString(),
     };

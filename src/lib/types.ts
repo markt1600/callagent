@@ -418,6 +418,8 @@ export interface PersonMemory {
   /** The memory file itself (~130 words max) */
   summary: string;
   personName: string;
+  /** "self" (the account owner) or the person's phone digits */
+  personKey: string;
   conversationCount: number;
   lastConversationAt: string;
 }
