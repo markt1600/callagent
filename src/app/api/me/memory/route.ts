@@ -21,12 +21,15 @@ export async function GET() {
 
   // The user themself — shown as "self" so the UI labels it "you", and so
   // erase targets the right file even before a contact number is saved.
+  // Both aliases ("self" and their own digits) mark the same person, so a
+  // leftover file under either key can never render a second entry.
   const selfDigits = phonePersonKey(user.contactPhone ?? "");
   const selfMemory = await loadMemory(user.id, "self");
   if (selfMemory) {
     memories.push({ ...selfMemory, personKey: "self" });
   }
-  seen.add(selfDigits || "self");
+  seen.add("self");
+  if (selfDigits) seen.add(selfDigits);
 
   // Every saved friend's shared memory file.
   const friends = await listJSON<Friend>(`userfriend:${user.id}:`);
@@ -38,12 +41,14 @@ export async function GET() {
   }
 
   // Legacy per-account files (pre-shared-memory) not yet migrated — e.g. a
-  // call recipient who was later removed as a friend.
+  // call recipient who was later removed as a friend. Loading consolidates
+  // each into its shared file and removes the leftover.
   const legacy = await listJSON<PersonMemory>(`memory:${user.id}:`);
   for (const m of legacy) {
     if (seen.has(m.personKey)) continue;
     seen.add(m.personKey);
-    memories.push(m);
+    const consolidated = await loadMemory(user.id, m.personKey);
+    if (consolidated) memories.push(consolidated);
   }
 
   memories.sort((a, b) => b.lastConversationAt.localeCompare(a.lastConversationAt));

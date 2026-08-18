@@ -15,7 +15,7 @@
 
 import { anthropic, assertNotRefusal } from "./claude";
 import { config } from "./config";
-import { getJSON, setJSON } from "./store";
+import { getJSON, setJSON, store } from "./store";
 import type { CallTurn, PersonMemory, UserProfile } from "./types";
 
 const MAX_SUMMARY_CHARS = 1500;
@@ -42,16 +42,35 @@ export async function loadMemory(
   personKey: string,
 ): Promise<PersonMemory | null> {
   const key = await memoryStorageKey(userId, personKey);
+  const legacyKey = `memory:${userId}:${personKey}`;
   const memory = await getJSON<PersonMemory>(key);
-  if (memory) return memory;
-  // Migrate: earlier builds stored memory per-account. Promote the legacy
-  // file into the shared location the first time it's read.
-  const legacy = await getJSON<PersonMemory>(`memory:${userId}:${personKey}`);
-  if (legacy && key !== `memory:${userId}:${personKey}`) {
-    await setJSON(key, legacy);
-    return legacy;
-  }
-  return legacy;
+  if (key === legacyKey) return memory; // no shared identity — nothing to merge
+
+  // Consolidate: earlier builds stored memory per-account. Fold any legacy
+  // file into the shared one and DELETE it, so each person has exactly one
+  // memory. The concatenated summary is tidied back under 130 words by the
+  // rewrite after the next conversation.
+  const legacy = await getJSON<PersonMemory>(legacyKey);
+  if (!legacy) return memory;
+  const digits = key.slice("memory:person:".length);
+  const merged: PersonMemory = memory
+    ? {
+        summary: (memory.summary === legacy.summary
+          ? memory.summary
+          : `${memory.summary}\n${legacy.summary}`
+        ).slice(0, MAX_SUMMARY_CHARS),
+        personName: memory.personName || legacy.personName,
+        personKey: digits,
+        conversationCount: memory.conversationCount + legacy.conversationCount,
+        lastConversationAt:
+          memory.lastConversationAt > legacy.lastConversationAt
+            ? memory.lastConversationAt
+            : legacy.lastConversationAt,
+      }
+    : { ...legacy, personKey: digits };
+  await setJSON(key, merged);
+  await store().del(legacyKey);
+  return merged;
 }
 
 /**
