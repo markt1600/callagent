@@ -35,6 +35,14 @@ export const config = {
     /** HMAC secret for post-call webhooks */
     webhookSecret: process.env.ELEVENLABS_WEBHOOK_SECRET || "",
   },
+  ahbeng: {
+    /**
+     * Phone number (any format) of the ONE person Ah Beng openly expresses
+     * love for — matched against the recipient of an affirmation call or the
+     * identity of a live chat. Unset = nobody gets the soft spot.
+     */
+    sweetheartPhone: process.env.AHBENG_SWEETHEART_PHONE || "",
+  },
   twilio: {
     accountSid: process.env.TWILIO_ACCOUNT_SID || "",
     authToken: process.env.TWILIO_AUTH_TOKEN || "",

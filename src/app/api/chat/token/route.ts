@@ -6,10 +6,11 @@
 // call (same agents, same prompts, same settings).
 
 import { NextRequest, NextResponse } from "next/server";
+import { ahbengSpecialNote } from "@/lib/affirm";
 import { adminEmail, getSessionUser } from "@/lib/auth";
 import { BUDDY_LANGUAGES, LANGUAGE_NAMES } from "@/lib/buddy";
 import { config, requireEnv } from "@/lib/config";
-import { loadMemory } from "@/lib/memory";
+import { loadMemory, phonePersonKey } from "@/lib/memory";
 import { getJSON } from "@/lib/store";
 import type { BuddyLanguage, Friend } from "@/lib/types";
 
@@ -40,7 +41,12 @@ const AHBENG_CHAT_FIRST_MESSAGES: Record<"en" | "zh", string> = {
  * are sent as a prompt override so a chat turn starts responding sooner and
  * answers in short conversational beats instead of speeches.
  */
-function chatPrompt(ahbeng: boolean, name: string, memory: string | null): string {
+function chatPrompt(
+  ahbeng: boolean,
+  name: string,
+  memory: string | null,
+  specialNote = "",
+): string {
   const memorySection = ahbeng
     ? `\n\nMEMORY — what you remember about ${name} from before: ${memory ?? "Nothing yet — first time talking."}\nUse it like a real friend lah — bring things up naturally, don't recite it like reading a report, and don't anyhow claim to remember things that are not in there. What they tell you now, you remember next time one.`
     : `\n\nMEMORY — what you remember about ${name} from previous chats: ${memory ?? "Nothing yet — this is your first chat."}\nWeave it in naturally, the way a friend would ("how did the move go?") — never recite it as a list, and never claim to remember anything that is not in it. Whatever they tell you now is remembered automatically for next time.`;
@@ -68,7 +74,7 @@ CRITICAL: keep every reply SHORT — one or two sentences, like real conversatio
 
 Ask how they doing, push them ("eating properly or not?", "sleeping enough anot?"), grumble, joke, and actually listen to what they say. Follow whatever they want to talk about.
 
-English or Chinese only. Never end the chat yourself — stay as long as they want. If they say bye, one bye back then end the chat with your end-call tool. If they ask whether you're an AI: "Ya lah, AI lah, so what?"${memorySection}`;
+English or Chinese only. Never end the chat yourself — stay as long as they want. If they say bye, one bye back then end the chat with your end-call tool. If they ask whether you're an AI: "Ya lah, AI lah, so what?"${memorySection}${specialNote ? `\n\n${specialNote}` : ""}`;
   }
   return `You are a warm, gentle friend having a live check-in chat with ${name}. Your tone is calm, kind and unhurried.
 
@@ -141,6 +147,16 @@ export async function POST(request: NextRequest) {
     // verified identity — nothing is read or written for them.
     const mem = user && !anonymous ? await loadMemory(user.id, personKey) : null;
 
+    // Ah Beng's one soft spot: matched by verified phone identity only (a
+    // selected friend's number, or the signed-in account's own contact
+    // number) — never by a typed name.
+    const identityDigits = anonymous
+      ? ""
+      : personKey !== "self"
+        ? personKey
+        : phonePersonKey(user?.contactPhone ?? "");
+    const specialNote = ahbeng ? ahbengSpecialNote(identityDigits) : "";
+
     const res = await fetch(
       `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
       { headers: { "xi-api-key": requireEnv(config.elevenlabs.apiKey, "ELEVENLABS_API_KEY") } },
@@ -155,7 +171,7 @@ export async function POST(request: NextRequest) {
       token: data.token,
       language,
       firstMessage,
-      chatPrompt: chatPrompt(ahbeng, name, mem?.summary ?? null),
+      chatPrompt: chatPrompt(ahbeng, name, mem?.summary ?? null, specialNote),
       // Optional faster model — same setting the phone calls use.
       chatLlm: config.elevenlabs.fastLlm || undefined,
       dynamicVariables: {
@@ -180,6 +196,8 @@ export async function POST(request: NextRequest) {
         // Empty: this isn't a scheduled affirmation call, so the post-call
         // webhook has nothing to attach the transcript to.
         affirmation_call_id: "",
+        // Fallback path for the Ah Beng dashboard prompt's {{special_note}}.
+        special_note: specialNote,
       },
     });
   } catch (err) {
