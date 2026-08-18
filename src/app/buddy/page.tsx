@@ -197,6 +197,7 @@ export default function BuddyPage() {
         <a href="/affirm">Affirmation Call</a>
         <a href="/chat">Live Chat</a>
         <a href="/account">Account</a>
+        {me?.isAdmin && <a href="/admin">Admin</a>}
       </nav>
       <p className="sub">
         Your buddy M calls you at the time you pick — a friendly check-in with a built-in

@@ -527,6 +527,7 @@ export default function Dashboard() {
           <a href="/affirm">Affirmation Call</a>
           <a href="/chat">Live Chat</a>
           <a href="/account">Account</a>
+          {me?.isAdmin && <a href="/admin">Admin</a>}
         </nav>
         {me && (
           <span className="row" style={{ alignItems: "center", gap: "0.6rem", flexWrap: "nowrap" }}>

@@ -245,6 +245,7 @@ export default function AccountPage() {
         <a href="/affirm">Affirmation Call</a>
         <a href="/chat">Live Chat</a>
         <a className="active">Account</a>
+        {me?.isAdmin && <a href="/admin">Admin</a>}
       </nav>
 
       {!me ? (

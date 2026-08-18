@@ -253,6 +253,7 @@ export default function ChatPage() {
         <a href="/affirm">Affirmation Call</a>
         <a className="active">Live Chat</a>
         <a href="/account">Account</a>
+        {me?.isAdmin && <a href="/admin">Admin</a>}
       </nav>
       <p className="sub">
         Talk to the same agents right here in your browser — no phone call. They check in
