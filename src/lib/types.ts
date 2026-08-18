@@ -408,6 +408,20 @@ export interface Friend {
   lastCalledAt?: string;
 }
 
+/**
+ * What the agent remembers about one person across conversations — a
+ * compact rolling summary, rewritten after every call/chat so it stays
+ * small (bounded prompt cost) no matter how many conversations happen.
+ * Scoped per app account: `memory:{userId}:{personKey}`.
+ */
+export interface PersonMemory {
+  /** The memory file itself (~130 words max) */
+  summary: string;
+  personName: string;
+  conversationCount: number;
+  lastConversationAt: string;
+}
+
 /** One entry in a user's credit ledger (deductions and additions). */
 export interface CreditTransaction {
   id: string;

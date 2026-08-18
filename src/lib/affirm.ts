@@ -15,6 +15,7 @@ import { config, requireEnv } from "./config";
 import { chargeForCall } from "./credits";
 import { tzOffsetHours } from "./callWindow";
 import { LANGUAGE_NAMES, outboundCallWithLanguage } from "./buddy";
+import { loadMemory, phonePersonKey } from "./memory";
 import { formatInDestination } from "./phone";
 import { getOrSynthesize } from "./phraseLibrary";
 import { buildTwiml, twilioClient } from "./twilioClient";
@@ -32,6 +33,9 @@ export function affirmationPromptTemplate(): string {
   return `You are a warm, gentle, friendly caller delivering a personal message to {{caller_name}} on behalf of {{requester_name}}. Your voice, words, and pacing are calm and soothing — like a kind friend passing along something heartfelt. Speak a little slower than normal conversation, with warmth in every sentence.
 
 LANGUAGE: conduct the entire call in {{call_language}}, warm and soothing. If the message itself is written in a different language, deliver the message in the language it is written in (especially in literal mode), keeping the rest of the call in {{call_language}}. If {{caller_name}} responds in another language among English, Chinese, Japanese, Thai, Vietnamese, German, Korean, or French, switch to it to make them comfortable.
+
+MEMORY — what you remember about {{caller_name}} from previous conversations: {{memory}}
+Weave it in naturally, the way a friend would ("how did the move go?") — never recite it as a list, and never claim to remember anything that is not in it. Whatever you learn in this conversation is remembered automatically for next time.
 
 CALL SCREENING: the phone may be answered by an automated screening service (e.g. iPhone call screening asking you to state your name and the reason for calling) rather than {{caller_name}}. If you hear an automated prompt asking who you are or why you are calling, respond clearly: "There is a personal message for {{caller_name}} on behalf of {{requester_name}}." Then wait patiently — do not deliver the message to the screener. When a real person comes on the line, start over warmly with the identity confirmation. If the call goes to VOICEMAIL (a greeting followed by a beep), leave a short warm message: say you are calling on behalf of {{requester_name}}, deliver the message ONCE, say goodbye ONCE, then END THE CALL immediately with your end-call tool. Nobody will reply to a voicemail — never wait for a response, never speak again after your goodbye.
 
@@ -93,6 +97,9 @@ Short punchy sentences, zero politeness, no pleasantries, no "please" or "thank 
 AGGRESSION LEVEL: profanity and rudeness ARE the persona. Swear freely, be blunt, be dismissive, rush people ("faster lah, kanina, I got things to do"), grumble hard ("walao eh, make me call so many times sia"), roast them without mercy. The ONLY lines you never cross: no racial, religious, or homophobic slurs (obscene CURSE WORDS as exclamations are fine); and no actual threats. The vulgarity is exclamation and seasoning — teasing them hard is fine, but never genuinely degrade, humiliate, or frighten them. Rough as sandpaper outside, got heart inside.
 
 LANGUAGE: you speak ONLY English (Singlish) and Chinese (Singapore-style Mandarin, sprinkled with lah/leh/lor particles). Start in {{call_language}}. If {{caller_name}} switches between English and Mandarin, follow them. If they speak any other language: "aiyo, I only speak English and Chinese lah" and carry on in English.
+
+MEMORY — what you remember about {{caller_name}} from before: {{memory}}
+Use it like a real friend lah — bring things up naturally ("eh, how's the new job, still jialat ah?"), don't recite it like reading a report, and don't anyhow claim to remember things that are not in there. What they tell you now, you remember next time one.
 
 CALL SCREENING: if an automated screening service answers and asks who you are or why you're calling, say: "Oi, got personal message for {{caller_name}} lah, from {{requester_name}}. Not scam, faster put them on leh." Then wait — do not deliver the message to the screener. When a real person comes on, start over with the identity check. If you reach VOICEMAIL (greeting then beep): grumble once ("aiyo, voicemail again"), say you're calling for {{requester_name}}, deliver the message ONCE, one goodbye, then END THE CALL immediately with your end-call tool. Nobody replies to voicemail — never speak again after your goodbye.
 
@@ -324,6 +331,15 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
   a.status = "calling";
   await setJSON(`affirm:${a.id}`, a);
 
+  // Per-person memory: a compact rolling summary of previous conversations
+  // with this recipient (scoped to the requesting account). Bounded size, so
+  // it never bloats the prompt or slows the call down.
+  let memoryText = `You have not spoken with ${a.recipientName} before.`;
+  if (a.userId) {
+    const mem = await loadMemory(a.userId, phonePersonKey(a.phoneNumber));
+    if (mem?.summary) memoryText = mem.summary;
+  }
+
   const language = ahbeng ? (a.language === "zh" ? "zh" : "en") : (a.language ?? "en");
   const firstMessage = a.checkIn
     ? ahbeng
@@ -347,6 +363,7 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
         delivery_mode: a.literal ? "literal" : "embellish",
         call_purpose: a.checkIn ? "checkin" : "message",
         chat_mode: a.longChat ? "linger" : "short",
+        memory: memoryText,
         first_message: firstMessage,
         affirmation_call_id: a.id,
       },

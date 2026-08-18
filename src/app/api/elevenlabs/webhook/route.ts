@@ -158,6 +158,26 @@ export async function POST(request: NextRequest) {
 
   // Emergency-relay call completed: the contact answered and was informed.
   const dynVars = data.conversation_initiation_client_data?.dynamic_variables;
+
+  // Live Chat session ended: fold it into the signed-in user's own memory
+  // file (guests send no chat_user_id and are neither stored nor remembered).
+  if (dynVars?.chat_user_id) {
+    const turns = (data.transcript ?? [])
+      .filter((t) => t.message)
+      .map((t) => ({
+        ts: "",
+        speaker: t.role === "agent" ? ("agent" as const) : ("restaurant" as const),
+        text: t.message!,
+      }));
+    const { updateMemoryFromConversation } = await import("@/lib/memory");
+    await updateMemoryFromConversation(
+      dynVars.chat_user_id,
+      "self",
+      dynVars.caller_name ?? "the user",
+      turns,
+    );
+    return NextResponse.json({ ok: true });
+  }
   if (dynVars?.call_mode === "emergency_relay" && dynVars.buddy_call_id) {
     const buddy = await getJSON<BuddyCall>(`buddy:${dynVars.buddy_call_id}`);
     if (buddy) {
@@ -182,6 +202,17 @@ export async function POST(request: NextRequest) {
       affirmation.summary = data.analysis?.transcript_summary;
       affirmation.status = "completed";
       await setJSON(`affirm:${affirmation.id}`, affirmation);
+      // Fold the conversation into the per-recipient memory file so the
+      // agent remembers them next time (account-owned calls only).
+      if (affirmation.userId && affirmation.turns.length > 0) {
+        const { updateMemoryFromConversation, phonePersonKey } = await import("@/lib/memory");
+        await updateMemoryFromConversation(
+          affirmation.userId,
+          phonePersonKey(affirmation.phoneNumber),
+          affirmation.recipientName,
+          affirmation.turns,
+        );
+      }
       // Recurring calls line up the next occurrence.
       const { scheduleNextOccurrence } = await import("@/lib/affirm");
       await scheduleNextOccurrence(affirmation);

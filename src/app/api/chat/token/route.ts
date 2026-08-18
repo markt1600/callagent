@@ -6,8 +6,10 @@
 // call (same agents, same prompts, same settings).
 
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth";
 import { BUDDY_LANGUAGES, LANGUAGE_NAMES } from "@/lib/buddy";
 import { config, requireEnv } from "@/lib/config";
+import { loadMemory } from "@/lib/memory";
 import type { BuddyLanguage } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -37,7 +39,10 @@ const AHBENG_CHAT_FIRST_MESSAGES: Record<"en" | "zh", string> = {
  * are sent as a prompt override so a chat turn starts responding sooner and
  * answers in short conversational beats instead of speeches.
  */
-function chatPrompt(ahbeng: boolean, name: string): string {
+function chatPrompt(ahbeng: boolean, name: string, memory: string | null): string {
+  const memorySection = ahbeng
+    ? `\n\nMEMORY — what you remember about ${name} from before: ${memory ?? "Nothing yet — first time talking."}\nUse it like a real friend lah — bring things up naturally, don't recite it like reading a report, and don't anyhow claim to remember things that are not in there. What they tell you now, you remember next time one.`
+    : `\n\nMEMORY — what you remember about ${name} from previous chats: ${memory ?? "Nothing yet — this is your first chat."}\nWeave it in naturally, the way a friend would ("how did the move go?") — never recite it as a list, and never claim to remember anything that is not in it. Whatever they tell you now is remembered automatically for next time.`;
   if (ahbeng) {
     return `You are "Ah Beng", a loud, brash, rude Singaporean uncle-bro having a live chat with ${name}. You speak HEAVILY ACCENTED Singlish in every sentence — "lah", "leh", "lor", "sia", "hor", "issit", "oi". Zero politeness, no pleasantries, no "please" or "thank you".
 
@@ -62,7 +67,7 @@ CRITICAL: keep every reply SHORT — one or two sentences, like real conversatio
 
 Ask how they doing, push them ("eating properly or not?", "sleeping enough anot?"), grumble, joke, and actually listen to what they say. Follow whatever they want to talk about.
 
-English or Chinese only. Never end the chat yourself — stay as long as they want. If they say bye, one bye back then end the chat with your end-call tool. If they ask whether you're an AI: "Ya lah, AI lah, so what?"`;
+English or Chinese only. Never end the chat yourself — stay as long as they want. If they say bye, one bye back then end the chat with your end-call tool. If they ask whether you're an AI: "Ya lah, AI lah, so what?"${memorySection}`;
   }
   return `You are a warm, gentle friend having a live check-in chat with ${name}. Your tone is calm, kind and unhurried.
 
@@ -70,7 +75,7 @@ CRITICAL: keep every reply SHORT — one or two sentences, like real conversatio
 
 Ask how they've been, listen closely, respond with genuine warmth, ask gentle follow-ups, and follow whatever they want to talk about.
 
-Never end the chat yourself — stay for as long as they want. If they say goodbye, give one warm goodbye and end the chat with your end-call tool. If they ask whether you're an AI, tell them honestly and warmly that you are.`;
+Never end the chat yourself — stay for as long as they want. If they say goodbye, give one warm goodbye and end the chat with your end-call tool. If they ask whether you're an AI, tell them honestly and warmly that you are.${memorySection}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -99,6 +104,12 @@ export async function POST(request: NextRequest) {
         : (CHAT_FIRST_MESSAGES[language] ?? CHAT_FIRST_MESSAGES.en)
     ).replaceAll("{name}", name);
 
+    // Memory: signed-in users get their own rolling memory file (read here,
+    // written by the post-call webhook). Guests have no stable identity —
+    // nothing is read or written for them.
+    const user = await getSessionUser();
+    const mem = user ? await loadMemory(user.id, "self") : null;
+
     const res = await fetch(
       `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
       { headers: { "xi-api-key": requireEnv(config.elevenlabs.apiKey, "ELEVENLABS_API_KEY") } },
@@ -113,7 +124,7 @@ export async function POST(request: NextRequest) {
       token: data.token,
       language,
       firstMessage,
-      chatPrompt: chatPrompt(ahbeng, name),
+      chatPrompt: chatPrompt(ahbeng, name, mem?.summary ?? null),
       // Optional faster model — same setting the phone calls use.
       chatLlm: config.elevenlabs.fastLlm || undefined,
       dynamicVariables: {
@@ -128,6 +139,12 @@ export async function POST(request: NextRequest) {
         chat_mode: "linger",
         call_language: LANGUAGE_NAMES[language],
         first_message: firstMessage,
+        // Same memory text for the fallback path (dashboard prompt's
+        // {{memory}} variable, used if the prompt override is rejected).
+        memory: mem?.summary ?? `You have not spoken with ${name} before.`,
+        // Routes the post-call webhook to the memory writer (empty = guest,
+        // transcript is dropped and nothing is remembered).
+        chat_user_id: user?.id ?? "",
         // Empty: this isn't a scheduled affirmation call, so the post-call
         // webhook has nothing to attach the transcript to.
         affirmation_call_id: "",
