@@ -33,7 +33,7 @@ export default function ChatPage() {
   const [form, setForm] = useState({
     name: "",
     friendId: "",
-    persona: "standard",
+    persona: "ahbeng",
     language: "en",
     mode: "handsfree" as "ptt" | "handsfree" | "text",
   });
@@ -101,11 +101,16 @@ export default function ChatPage() {
         setMe(data);
         if (data.user) {
           const u = data.user;
-          setForm((f) => ({
-            ...f,
-            name: f.name || (u.bookingName ?? u.name ?? "").split(/\s+/)[0] || "",
-            language: u.buddyLanguage || f.language,
-          }));
+          setForm((f) => {
+            const lang = u.buddyLanguage || f.language;
+            return {
+              ...f,
+              name: f.name || (u.bookingName ?? u.name ?? "").split(/\s+/)[0] || "",
+              // Ah Beng (the default) only speaks English and Chinese.
+              language:
+                f.persona === "ahbeng" && lang !== "en" && lang !== "zh" ? f.language : lang,
+            };
+          });
           fetch("/api/me/friends")
             .then((r) => r.json())
             .then((d) => setFriends(d.friends ?? []))
@@ -353,8 +358,8 @@ export default function ChatPage() {
               });
             }}
           >
-            <option value="standard">Standard — warm and soothing</option>
             <option value="ahbeng">Ah Beng — male, heavy Singlish (English/Chinese only)</option>
+            <option value="standard">Standard — warm and soothing</option>
           </select>
           <label>Language</label>
           <select

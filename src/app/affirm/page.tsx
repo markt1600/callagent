@@ -78,7 +78,7 @@ const EMPTY = {
   requesterName: "",
   delivery: "literal",
   language: "en",
-  persona: "standard",
+  persona: "ahbeng",
   longChat: false,
   messageMode: "typed" as "typed" | "generated" | "recorded" | "checkin",
   messageKind: "joke",
@@ -117,12 +117,18 @@ export default function AffirmPage() {
   function applyFriend(id: string) {
     const f = friends.find((x) => x.id === id);
     if (!f) return;
-    setForm((prev) => ({
-      ...prev,
-      recipientName: f.name,
-      phoneNumber: f.phoneNumber,
-      language: f.language ?? prev.language,
-    }));
+    setForm((prev) => {
+      const lang = f.language ?? prev.language;
+      return {
+        ...prev,
+        recipientName: f.name,
+        phoneNumber: f.phoneNumber,
+        // Ah Beng only speaks English and Chinese — don't let a friend's
+        // other preferred language put the select in an invalid state.
+        language:
+          prev.persona === "ahbeng" && lang !== "en" && lang !== "zh" ? prev.language : lang,
+      };
+    });
   }
 
   /** Load a pending call into the form for editing. */
@@ -437,8 +443,8 @@ export default function AffirmPage() {
                 });
               }}
             >
-              <option value="standard">Standard (warm female voice)</option>
               <option value="ahbeng">Ah Beng (male, heavy Singlish — English/Chinese only)</option>
+              <option value="standard">Standard (warm female voice)</option>
             </select>
           </>
         )}
