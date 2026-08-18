@@ -654,7 +654,9 @@ export default function AccountPage() {
             <h2>Agent memory</h2>
             <p className="sub" style={{ marginTop: 0 }}>
               What the agents remember about each person from their calls and chats — a
-              short rolling summary, never the full transcripts. Erasing one is permanent.
+              short rolling summary, never the full transcripts. Memory belongs to the
+              person (matched by phone number), so a friend here and their own account
+              share one memory. Erasing one is permanent and clears it everywhere.
             </p>
             {memories.length === 0 ? (
               <p className="sub">Nothing remembered yet — memories build up as calls and chats happen.</p>

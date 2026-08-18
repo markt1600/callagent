@@ -4,15 +4,19 @@
 // rolling memory file (~130 words) by the fast model AFTER the conversation
 // ends, and only that file is injected next time. Bounded cost, real recall.
 //
-// Keys: memory:{userId}:{personKey}
-//   personKey = the recipient's phone digits (affirmation calls)
-//             = "self" (the account owner's own Live Chats)
-// Guests have no stable identity, so no memory is read or written for them.
+// A PERSON has one memory, not one per account: files are keyed globally by
+// the person's phone digits (memory:person:{digits}), so "Lin Koh, saved as
+// a friend on Mark's account" and "Me, on Lin Koh's own account" are the
+// SAME file — calls placed to her and chats she starts herself all build the
+// same memory. "self" resolves through the account's saved contact number;
+// an account with no contact number falls back to a private per-account file
+// (memory:{userId}:self). Guests have no stable identity — nothing is read
+// or written for them.
 
 import { anthropic, assertNotRefusal } from "./claude";
 import { config } from "./config";
 import { getJSON, setJSON } from "./store";
-import type { CallTurn, PersonMemory } from "./types";
+import type { CallTurn, PersonMemory, UserProfile } from "./types";
 
 const MAX_SUMMARY_CHARS = 1500;
 
@@ -21,11 +25,33 @@ export function phonePersonKey(phoneNumber: string): string {
   return phoneNumber.replace(/\D/g, "");
 }
 
+/**
+ * Where a person's memory actually lives. personKey is phone digits, or
+ * "self" — which follows the account's contact number so the owner's own
+ * chats land in the same global file their friends' calls to them do.
+ */
+export async function memoryStorageKey(userId: string, personKey: string): Promise<string> {
+  if (personKey !== "self") return `memory:person:${personKey}`;
+  const profile = await getJSON<UserProfile>(`user:${userId}`);
+  const digits = phonePersonKey(profile?.contactPhone ?? "");
+  return digits ? `memory:person:${digits}` : `memory:${userId}:self`;
+}
+
 export async function loadMemory(
   userId: string,
   personKey: string,
 ): Promise<PersonMemory | null> {
-  return await getJSON<PersonMemory>(`memory:${userId}:${personKey}`);
+  const key = await memoryStorageKey(userId, personKey);
+  const memory = await getJSON<PersonMemory>(key);
+  if (memory) return memory;
+  // Migrate: earlier builds stored memory per-account. Promote the legacy
+  // file into the shared location the first time it's read.
+  const legacy = await getJSON<PersonMemory>(`memory:${userId}:${personKey}`);
+  if (legacy && key !== `memory:${userId}:${personKey}`) {
+    await setJSON(key, legacy);
+    return legacy;
+  }
+  return legacy;
 }
 
 /**
@@ -69,14 +95,17 @@ Rewrite the memory file. Rules: at most 130 words; plain factual sentences; keep
     const block = response.content.find((b) => b.type === "text");
     if (!block || block.type !== "text" || !block.text.trim()) return;
 
+    const key = await memoryStorageKey(userId, personKey);
     const memory: PersonMemory = {
       summary: block.text.trim().slice(0, MAX_SUMMARY_CHARS),
       personName,
-      personKey,
+      // The stored key is the person's global identity (their phone digits)
+      // whenever one exists, never the account-relative "self".
+      personKey: key.startsWith("memory:person:") ? key.slice("memory:person:".length) : personKey,
       conversationCount: (prior?.conversationCount ?? 0) + 1,
       lastConversationAt: new Date().toISOString(),
     };
-    await setJSON(`memory:${userId}:${personKey}`, memory);
+    await setJSON(key, memory);
   } catch (err) {
     console.error(`Memory update failed for ${userId}:${personKey} (continuing):`, err);
   }
