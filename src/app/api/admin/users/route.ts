@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRequest } from "@/lib/auth";
 import { creditsOf } from "@/lib/credits";
 import { getJSON, listJSON, setJSON } from "@/lib/store";
-import type { UserProfile } from "@/lib/types";
+import type { Friend, UserProfile } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
   if (denied) return NextResponse.json({ error: denied }, { status: 401 });
 
   const profiles = await listJSON<UserProfile>("user:");
-  const users = profiles
-    .map((u) => ({
+  const users = await Promise.all(
+    profiles.map(async (u) => ({
       id: u.id,
       email: u.email,
       name: u.name ?? u.bookingName ?? "",
@@ -23,8 +23,15 @@ export async function GET(request: NextRequest) {
       contactPhone: u.contactPhone ?? null,
       bookingName: u.bookingName ?? "",
       buddyLanguage: u.buddyLanguage ?? "",
-    }))
-    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+      friends: (await listJSON<Friend>(`userfriend:${u.id}:`)).map((f) => ({
+        id: f.id,
+        name: f.name,
+        phoneNumber: f.phoneNumber,
+        language: f.language ?? "",
+      })),
+    })),
+  );
+  users.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
   return NextResponse.json({ users });
 }
 

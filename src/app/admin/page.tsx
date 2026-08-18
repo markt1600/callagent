@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import BottomNav from "../components/BottomNav";
 import PhoneInput from "../components/PhoneInput";
 import { countryForPrefix } from "@/lib/phone";
-import type { LibraryEntry, ReservationRequest } from "@/lib/types";
+import type { LibraryEntry, PersonMemory, ReservationRequest } from "@/lib/types";
 
 interface LibraryStats {
   count: number;
@@ -36,8 +36,10 @@ export default function AdminPage() {
       contactPhone: string | null;
       bookingName?: string;
       buddyLanguage?: string;
+      friends?: Array<{ id: string; name: string; phoneNumber: string; language: string }>;
     }>
   >([]);
+  const [adminMemories, setAdminMemories] = useState<PersonMemory[]>([]);
   const [userEditingId, setUserEditingId] = useState<string | null>(null);
   const [userEdit, setUserEdit] = useState({ bookingName: "", contactPhone: "", buddyLanguage: "" });
   const [userError, setUserError] = useState<string | null>(null);
@@ -87,6 +89,18 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/users", { headers: { "x-admin-pin": stored } });
       const data = await res.json();
       if (res.ok && data.users) setUsers(data.users);
+    } catch {
+      /* transient */
+    }
+  }, []);
+
+  const loadMemories = useCallback(async () => {
+    const stored = sessionStorage.getItem("adminPin");
+    if (!stored) return;
+    try {
+      const res = await fetch("/api/admin/memory", { headers: { "x-admin-pin": stored } });
+      const data = await res.json();
+      if (res.ok && data.memories) setAdminMemories(data.memories);
     } catch {
       /* transient */
     }
@@ -153,8 +167,9 @@ export default function AdminPage() {
       refresh();
       loadCosts();
       loadUsers();
+      loadMemories();
     }
-  }, [pin, refresh, loadCosts, loadUsers]);
+  }, [pin, refresh, loadCosts, loadUsers, loadMemories]);
 
   function unlock() {
     if (!pinInput.trim()) return;
@@ -451,8 +466,81 @@ export default function AdminPage() {
                       </button>
                     </div>
                     {userError && <p className="error">{userError}</p>}
+                    <label style={{ marginTop: "0.8rem" }}>Their friends</label>
+                    {!u.friends?.length ? (
+                      <p className="sub" style={{ margin: 0 }}>
+                        No friends saved on this account.
+                      </p>
+                    ) : (
+                      u.friends.map((f) => (
+                        <div key={f.id} className="meta" style={{ padding: "0.15rem 0" }}>
+                          <strong>{f.name}</strong> · {f.phoneNumber}
+                          {f.language
+                            ? ` · ${USER_LANGUAGE_OPTIONS.find((o) => o.value === f.language)?.label ?? f.language}`
+                            : ""}
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {access === "allowed" && pin && (
+        <div className="panel">
+          <h2>Memory files</h2>
+          <p className="sub" style={{ marginTop: 0 }}>
+            Every per-person memory in the system ({adminMemories.length} total). Memory
+            belongs to the person, matched by phone number — erasing one clears it for
+            every account that talks to them.
+          </p>
+          {adminMemories.length === 0 ? (
+            <p className="sub">No memories yet.</p>
+          ) : (
+            adminMemories.map((m) => (
+              <div key={m.personKey} className="res-item" style={{ cursor: "default" }}>
+                <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
+                  <div>
+                    <strong>{m.personName || m.personKey}</strong>
+                    <div className="meta">
+                      +{m.personKey}
+                      {" · "}
+                      {m.conversationCount} conversation{m.conversationCount === 1 ? "" : "s"}
+                      {m.lastConversationAt
+                        ? ` · last ${new Date(m.lastConversationAt).toLocaleDateString()}`
+                        : ""}
+                    </div>
+                  </div>
+                  <button
+                    className="delete-btn"
+                    title="Erase this memory"
+                    onClick={async () => {
+                      if (
+                        !window.confirm(
+                          `Erase everything remembered about ${m.personName || "this person"}? This cannot be undone.`,
+                        )
+                      )
+                        return;
+                      const stored = sessionStorage.getItem("adminPin");
+                      await fetch(`/api/admin/memory?key=${encodeURIComponent(m.personKey)}`, {
+                        method: "DELETE",
+                        headers: stored ? { "x-admin-pin": stored } : undefined,
+                      });
+                      setAdminMemories((list) =>
+                        list.filter((x) => x.personKey !== m.personKey),
+                      );
+                    }}
+                    style={{ fontSize: "1.2rem", color: "var(--err)", flexShrink: 0 }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p style={{ margin: "0.5rem 0 0", fontSize: "0.85rem", whiteSpace: "pre-wrap" }}>
+                  {m.summary}
+                </p>
               </div>
             ))
           )}
