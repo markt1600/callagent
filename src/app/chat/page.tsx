@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Conversation, type Language } from "@elevenlabs/client";
 import BottomNav from "../components/BottomNav";
+import PhoneNumberPrompt from "../components/PhoneNumberPrompt";
 import type { Friend, UserProfile } from "@/lib/types";
 
 interface MeResponse {
@@ -37,6 +38,7 @@ export default function ChatPage() {
     mode: "handsfree" as "ptt" | "handsfree" | "text",
   });
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [phonePromptHidden, setPhonePromptHidden] = useState(false);
   const [phase, setPhase] = useState<"idle" | "connecting" | "live" | "ended">("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [speaking, setSpeaking] = useState(false);
@@ -143,9 +145,11 @@ export default function ChatPage() {
           name: form.name,
           persona: form.persona,
           language: form.language,
-          // Chat as one of the account's friends — the server validates the id
-          // and binds the chat to that friend's memory file.
-          friendId: form.friendId || undefined,
+          // "other" = named guest, no memory. A friend id (owner account
+          // only, server-enforced) binds the chat to that friend's memory.
+          identity: form.friendId === "other" ? "other" : undefined,
+          friendId:
+            form.friendId && form.friendId !== "other" ? form.friendId : undefined,
         }),
       });
       const data = await res.json();
@@ -255,10 +259,21 @@ export default function ChatPage() {
         on how you&apos;re doing and stay for as long as you want to talk.
       </p>
 
+      {me?.user && !me.user.contactPhone && !phonePromptHidden && phase !== "live" && (
+        <PhoneNumberPrompt
+          onSaved={(phone) =>
+            setMe((m) =>
+              m?.user ? { ...m, user: { ...m.user, contactPhone: phone } } : m,
+            )
+          }
+          onDismiss={() => setPhonePromptHidden(true)}
+        />
+      )}
+
       {phase === "idle" || phase === "ended" ? (
         <div className="panel">
           <h2>{phase === "ended" ? "Start another chat" : "Start a chat"}</h2>
-          {friends.length > 0 && (
+          {me?.user && (
             <>
               <label>Who is chatting?</label>
               <select
@@ -281,37 +296,44 @@ export default function ChatPage() {
                                 : "en"
                               : friend.language || f.language,
                         }
-                      : {
-                          // Back to "Me": restore the account holder's name.
-                          name:
-                            (me?.user?.bookingName ?? me?.user?.name ?? "").split(/\s+/)[0] ||
-                            f.name,
-                        }),
+                      : friendId === "other"
+                        ? { name: "" }
+                        : {
+                            // Back to "Me": restore the account holder's name.
+                            name:
+                              (me?.user?.bookingName ?? me?.user?.name ?? "").split(/\s+/)[0] ||
+                              f.name,
+                          }),
                   }));
                 }}
               >
                 <option value="">
                   Me{form.name && !form.friendId ? ` — ${form.name}` : ""}
                 </option>
-                {friends.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name} ({f.phoneNumber})
-                  </option>
-                ))}
+                {me.isAdmin &&
+                  friends.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} ({f.phoneNumber})
+                    </option>
+                  ))}
+                <option value="other">Someone else</option>
               </select>
               <p className="sub" style={{ margin: "0.1rem 0 0.6rem" }}>
-                The agent uses its memory of that person — the same memory as their
-                affirmation calls.
+                {form.friendId === "other"
+                  ? "A guest chat — the agent doesn't use or update anyone's memory."
+                  : form.friendId
+                    ? "The agent uses its memory of that person — the same memory as their affirmation calls."
+                    : "The agent uses and updates its memory of you."}
               </p>
             </>
           )}
-          {!form.friendId && (
+          {(!form.friendId || form.friendId === "other") && (
             <>
-              <label>Your name</label>
+              <label>{form.friendId === "other" ? "Their name" : "Your name"}</label>
               <input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Mark"
+                placeholder={form.friendId === "other" ? "Name" : "Mark"}
               />
             </>
           )}

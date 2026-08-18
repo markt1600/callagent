@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { shiftHHMM } from "@/lib/timeUtils";
 import GoogleSignIn from "./components/GoogleSignIn";
 import AgentContactPrompt from "./components/AgentContactPrompt";
+import PhoneNumberPrompt from "./components/PhoneNumberPrompt";
 import BottomNav from "./components/BottomNav";
 import PhoneInput from "./components/PhoneInput";
 import type {
@@ -98,6 +99,9 @@ export default function Dashboard() {
   // Entry gate: sign in with Google or pick guest mode before the app shows.
   // Returning sessions (cookie) and returning guests (localStorage) skip it.
   const [gate, setGate] = useState<"loading" | "gate" | "app">("loading");
+  // "Add your phone number" nudge for signed-in accounts without one —
+  // memory is keyed by phone number, so new Google accounts are asked early.
+  const [phonePromptHidden, setPhonePromptHidden] = useState(false);
 
   const user = me?.user ?? null;
 
@@ -541,6 +545,18 @@ export default function Dashboard() {
           </span>
         )}
       </div>
+
+      {user && !user.contactPhone && !phonePromptHidden && (
+        <PhoneNumberPrompt
+          onSaved={(phone) => {
+            setMe((m) =>
+              m?.user ? { ...m, user: { ...m.user, contactPhone: phone } } : m,
+            );
+            setForm((f) => ({ ...f, contactPhone: f.contactPhone || phone }));
+          }}
+          onDismiss={() => setPhonePromptHidden(true)}
+        />
+      )}
 
       <div className="grid">
         <div>

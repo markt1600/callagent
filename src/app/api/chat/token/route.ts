@@ -6,7 +6,7 @@
 // call (same agents, same prompts, same settings).
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
+import { adminEmail, getSessionUser } from "@/lib/auth";
 import { BUDDY_LANGUAGES, LANGUAGE_NAMES } from "@/lib/buddy";
 import { config, requireEnv } from "@/lib/config";
 import { loadMemory } from "@/lib/memory";
@@ -84,18 +84,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const user = await getSessionUser();
 
-    // Who is chatting: the account owner ("self"), or one of THEIR saved
-    // friends — in which case the chat binds to that friend's memory file,
-    // the same one their affirmation calls use. The friend must belong to
-    // the signed-in account (server-checked; the id is never trusted alone).
+    // Who is chatting: the account owner ("self"), someone else entirely
+    // ("other" — a named guest, NO memory read or written, so nobody can
+    // impersonate a real person into their memory file), or — OWNER ACCOUNT
+    // ONLY — one of the saved friends, binding the chat to that friend's
+    // memory file, the same one their affirmation calls use. The friend id
+    // and the owner check are both enforced here, never trusted from the UI.
     let name = String(body.name ?? "").trim().slice(0, 60);
     let personKey = "self";
+    const anonymous = body.identity === "other";
     let friendLanguage: BuddyLanguage | undefined;
-    if (body.friendId) {
+    if (body.friendId && !anonymous) {
       if (!user) {
         return NextResponse.json(
           { error: "Sign in to chat as one of your friends" },
           { status: 401 },
+        );
+      }
+      if (user.email.toLowerCase() !== adminEmail().toLowerCase()) {
+        return NextResponse.json(
+          { error: "Only the owner account can chat as a saved friend" },
+          { status: 403 },
         );
       }
       const fid = String(body.friendId).replace(/\D/g, "");
@@ -128,9 +137,9 @@ export async function POST(request: NextRequest) {
     ).replaceAll("{name}", name);
 
     // Memory: the selected person's rolling memory file (read here, written
-    // by the post-call webhook). Guests have no stable identity — nothing is
-    // read or written for them.
-    const mem = user ? await loadMemory(user.id, personKey) : null;
+    // by the post-call webhook). Guests and "someone else" chats have no
+    // verified identity — nothing is read or written for them.
+    const mem = user && !anonymous ? await loadMemory(user.id, personKey) : null;
 
     const res = await fetch(
       `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
@@ -164,10 +173,10 @@ export async function POST(request: NextRequest) {
         // Same memory text for the fallback path (dashboard prompt's
         // {{memory}} variable, used if the prompt override is rejected).
         memory: mem?.summary ?? `You have not spoken with ${name} before.`,
-        // Routes the post-call webhook to the memory writer (empty = guest,
-        // transcript is dropped and nothing is remembered).
-        chat_user_id: user?.id ?? "",
-        chat_person_key: personKey,
+        // Routes the post-call webhook to the memory writer (empty = guest
+        // or "someone else" — transcript is dropped, nothing is remembered).
+        chat_user_id: anonymous ? "" : (user?.id ?? ""),
+        chat_person_key: anonymous ? "" : personKey,
         // Empty: this isn't a scheduled affirmation call, so the post-call
         // webhook has nothing to attach the transcript to.
         affirmation_call_id: "",
