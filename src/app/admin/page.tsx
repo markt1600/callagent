@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import BottomNav from "../components/BottomNav";
+import PhoneInput from "../components/PhoneInput";
 import { countryForPrefix } from "@/lib/phone";
 import type { LibraryEntry, ReservationRequest } from "@/lib/types";
 
@@ -33,8 +34,24 @@ export default function AdminPage() {
       createdAt?: string;
       credits: number;
       contactPhone: string | null;
+      bookingName?: string;
+      buddyLanguage?: string;
     }>
   >([]);
+  const [userEditingId, setUserEditingId] = useState<string | null>(null);
+  const [userEdit, setUserEdit] = useState({ bookingName: "", contactPhone: "", buddyLanguage: "" });
+  const [userError, setUserError] = useState<string | null>(null);
+
+  const USER_LANGUAGE_OPTIONS = [
+    { value: "en", label: "English" },
+    { value: "zh", label: "Chinese (Mandarin)" },
+    { value: "ja", label: "Japanese" },
+    { value: "th", label: "Thai" },
+    { value: "vi", label: "Vietnamese" },
+    { value: "de", label: "German" },
+    { value: "ko", label: "Korean" },
+    { value: "fr", label: "French" },
+  ];
 
   useEffect(() => {
     setPin(sessionStorage.getItem("adminPin"));
@@ -74,6 +91,24 @@ export default function AdminPage() {
       /* transient */
     }
   }, []);
+
+  async function saveUserEdit(id: string) {
+    if (!pin) return;
+    setUserError(null);
+    const res = await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-pin": pin },
+      body: JSON.stringify({ id, ...userEdit }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setUserError((data as { error?: string }).error || `Save failed (${res.status})`);
+      if (res.status === 401) lock();
+      return;
+    }
+    setUserEditingId(null);
+    loadUsers();
+  }
 
   async function saveCosts() {
     if (!pin) return;
@@ -350,16 +385,74 @@ export default function AdminPage() {
                     <strong>{u.name || u.email}</strong>
                     <div className="meta">
                       {u.email}
-                      {u.contactPhone ? ` · ${u.contactPhone}` : ""}
+                      {u.contactPhone ? ` · ${u.contactPhone}` : " · no phone saved"}
                       {u.createdAt
                         ? ` · joined ${new Date(u.createdAt).toLocaleDateString()}`
                         : ""}
                     </div>
                   </div>
-                  <span className="sub" style={{ margin: 0, flexShrink: 0 }}>
-                    {u.credits.toLocaleString()} credits
+                  <span className="row" style={{ flexShrink: 0, gap: "0.5rem", alignItems: "center" }}>
+                    <span className="sub" style={{ margin: 0 }}>
+                      {u.credits.toLocaleString()} credits
+                    </span>
+                    <button
+                      className="delete-btn"
+                      title="Edit user"
+                      onClick={() => {
+                        if (userEditingId === u.id) {
+                          setUserEditingId(null);
+                        } else {
+                          setUserEditingId(u.id);
+                          setUserError(null);
+                          setUserEdit({
+                            bookingName: u.bookingName ?? "",
+                            contactPhone: u.contactPhone ?? "",
+                            buddyLanguage: u.buddyLanguage ?? "",
+                          });
+                        }
+                      }}
+                      style={{ fontSize: "1rem" }}
+                    >
+                      ✎
+                    </button>
                   </span>
                 </div>
+                {userEditingId === u.id && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <label>Booking name</label>
+                    <input
+                      value={userEdit.bookingName}
+                      onChange={(e) => setUserEdit({ ...userEdit, bookingName: e.target.value })}
+                      placeholder="First Last"
+                    />
+                    <label>Contact number (links their memory by phone)</label>
+                    <PhoneInput
+                      value={userEdit.contactPhone}
+                      onChange={(v) => setUserEdit({ ...userEdit, contactPhone: v })}
+                    />
+                    <label>Preferred language</label>
+                    <select
+                      value={userEdit.buddyLanguage}
+                      onChange={(e) =>
+                        setUserEdit({ ...userEdit, buddyLanguage: e.target.value })
+                      }
+                    >
+                      <option value="">Not set</option>
+                      {USER_LANGUAGE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="row">
+                      <button onClick={() => saveUserEdit(u.id)}>Save changes</button>
+                      <button className="secondary" onClick={() => setUserEditingId(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                    {userError && <p className="error">{userError}</p>}
+                  </div>
+                )}
               </div>
             ))
           )}
