@@ -34,6 +34,12 @@ const AHBENG_CHAT_FIRST_MESSAGES: Record<"en" | "zh", string> = {
   zh: "喂，{name}！怎么样——你还行吗？说说看啦。",
 };
 
+/** Opener for his ONE sweetheart: the chat starts with the love, always. */
+const AHBENG_SWEETHEART_OPENERS: Record<"en" | "zh", string> = {
+  en: "Oi, {name}! First thing ah — limpeh damn love you, okay? Okay, said already. Now, how are you — eat properly or not?",
+  zh: "喂，{name}！先跟你讲好——limpeh sibei 爱你的，知道吗？好啦，讲完了。怎么样，今天还好吗？吃饱没？",
+};
+
 /**
  * Lean per-session system prompt. The agents' full call prompts cover
  * screening, voicemail, message delivery and delivery modes — none of which
@@ -136,17 +142,6 @@ export async function POST(request: NextRequest) {
     // Ah Beng only speaks English and Chinese.
     const language: BuddyLanguage = ahbeng ? (requested === "zh" ? "zh" : "en") : requested;
 
-    const firstMessage = (
-      ahbeng
-        ? AHBENG_CHAT_FIRST_MESSAGES[language === "zh" ? "zh" : "en"]
-        : (CHAT_FIRST_MESSAGES[language] ?? CHAT_FIRST_MESSAGES.en)
-    ).replaceAll("{name}", name);
-
-    // Memory: the selected person's rolling memory file (read here, written
-    // by the post-call webhook). Guests and "someone else" chats have no
-    // verified identity — nothing is read or written for them.
-    const mem = user && !anonymous ? await loadMemory(user.id, personKey) : null;
-
     // Ah Beng's one soft spot: matched by verified phone identity only (a
     // selected friend's number, or the signed-in account's own contact
     // number) — never by a typed name.
@@ -156,6 +151,20 @@ export async function POST(request: NextRequest) {
         ? personKey
         : phonePersonKey(user?.contactPhone ?? "");
     const specialNote = ahbeng ? ahbengSpecialNote(identityDigits) : "";
+
+    // His sweetheart's chats OPEN with the declaration of love.
+    const firstMessage = (
+      ahbeng
+        ? specialNote
+          ? AHBENG_SWEETHEART_OPENERS[language === "zh" ? "zh" : "en"]
+          : AHBENG_CHAT_FIRST_MESSAGES[language === "zh" ? "zh" : "en"]
+        : (CHAT_FIRST_MESSAGES[language] ?? CHAT_FIRST_MESSAGES.en)
+    ).replaceAll("{name}", name);
+
+    // Memory: the selected person's rolling memory file (read here, written
+    // by the post-call webhook). Guests and "someone else" chats have no
+    // verified identity — nothing is read or written for them.
+    const mem = user && !anonymous ? await loadMemory(user.id, personKey) : null;
 
     const res = await fetch(
       `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
