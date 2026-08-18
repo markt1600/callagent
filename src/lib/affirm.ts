@@ -352,6 +352,11 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
     "ELEVENLABS_AGENT_PHONE_NUMBER_ID",
   );
 
+  // Ah Beng's one soft spot — non-empty only for the configured person.
+  // Recorded on the call so the listing can show sweetheart mode was on.
+  const specialNote = ahbeng ? ahbengSpecialNote(phonePersonKey(a.phoneNumber)) : "";
+  if (specialNote) a.sweetheart = true;
+
   a.attempts += 1;
   a.attemptsInCycle += 1;
   a.status = "calling";
@@ -392,8 +397,7 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
         memory: memoryText,
         first_message: firstMessage,
         affirmation_call_id: a.id,
-        // Ah Beng's one soft spot — non-empty only for the configured person.
-        special_note: ahbeng ? ahbengSpecialNote(phonePersonKey(a.phoneNumber)) : "",
+        special_note: specialNote,
       },
     },
     language,

@@ -581,6 +581,7 @@ export default function AffirmPage() {
             <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
               <div>
                 <strong>{formatInDestination(a.callAt, a.phoneNumber)}</strong>{" "}
+                {a.sweetheart && <span title="Sweetheart mode">❤️ </span>}
                 <span className={`badge ${a.status}`}>{a.status}</span>
                 <div className="meta">
                   To {a.recipientName} · {a.phoneNumber} · from {a.requesterName} ·{" "}

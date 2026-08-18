@@ -347,6 +347,8 @@ export interface AffirmationCall {
    * (its own ElevenLabs agent; English and Chinese only).
    */
   persona?: "standard" | "ahbeng";
+  /** True when Ah Beng's sweetheart mode was active for this call. */
+  sweetheart?: boolean;
   /** Longer call: after delivering the message, keep chatting until the recipient hangs up */
   longChat?: boolean;
   /** The message to deliver (may be empty when a recording is attached) */
