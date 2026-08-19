@@ -10,7 +10,7 @@ import { ahbengSpecialNote } from "@/lib/affirm";
 import { adminEmail, getSessionUser } from "@/lib/auth";
 import { BUDDY_LANGUAGES, LANGUAGE_NAMES } from "@/lib/buddy";
 import { config, requireEnv } from "@/lib/config";
-import { loadMemory, phonePersonKey } from "@/lib/memory";
+import { loadMemory, phonePersonKey, profileByPhone } from "@/lib/memory";
 import { getJSON } from "@/lib/store";
 import type { BuddyLanguage, Friend } from "@/lib/types";
 
@@ -56,7 +56,11 @@ function chatPrompt(
   name: string,
   memory: string | null,
   specialNote = "",
+  gender?: string,
 ): string {
+  const genderSection = gender
+    ? `\n\n${name}'s gender: ${gender} — use it only to speak naturally (pronouns, how you address them${ahbeng ? ', "bro"/"sis" etc.' : ""}), never comment on it.`
+    : "";
   const memorySection = ahbeng
     ? `\n\nMEMORY — what you remember about ${name} from before: ${memory ?? "Nothing yet — first time talking."}\nUse it like a real friend lah — bring things up naturally, don't recite it like reading a report, and don't anyhow claim to remember things that are not in there. What they tell you now, you remember next time one.`
     : `\n\nMEMORY — what you remember about ${name} from previous chats: ${memory ?? "Nothing yet — this is your first chat."}\nWeave it in naturally, the way a friend would ("how did the move go?") — never recite it as a list, and never claim to remember anything that is not in it. Whatever they tell you now is remembered automatically for next time.`;
@@ -89,7 +93,7 @@ CRITICAL: keep every reply SHORT — one or two sentences, like real conversatio
 
 Ask how they doing, push them ("eating properly or not?", "sleeping enough anot?"), grumble, joke, and actually listen to what they say. Follow whatever they want to talk about.
 
-English or Chinese only. Never end the chat yourself — stay as long as they want. If they say bye, one bye back then end the chat with your end-call tool. If they ask whether you're an AI: "Ya lah, AI lah, so what?"${memorySection}${specialNote ? `\n\n${specialNote}` : ""}`;
+English or Chinese only. Never end the chat yourself — stay as long as they want. If they say bye, one bye back then end the chat with your end-call tool. If they ask whether you're an AI: "Ya lah, AI lah, so what?"${genderSection}${memorySection}${specialNote ? `\n\n${specialNote}` : ""}`;
   }
   return `You are a warm, gentle friend having a live check-in chat with ${name}. Your tone is calm, kind and unhurried.
 
@@ -97,7 +101,7 @@ CRITICAL: keep every reply SHORT — one or two sentences, like real conversatio
 
 Ask how they've been, listen closely, respond with genuine warmth, ask gentle follow-ups, and follow whatever they want to talk about.
 
-Never end the chat yourself — stay for as long as they want. If they say goodbye, give one warm goodbye and end the chat with your end-call tool. If they ask whether you're an AI, tell them honestly and warmly that you are.${memorySection}`;
+Never end the chat yourself — stay for as long as they want. If they say goodbye, give one warm goodbye and end the chat with your end-call tool. If they ask whether you're an AI, tell them honestly and warmly that you are.${genderSection}${memorySection}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -175,6 +179,15 @@ export async function POST(request: NextRequest) {
     // verified identity — nothing is read or written for them.
     const mem = user && !anonymous ? await loadMemory(user.id, personKey) : null;
 
+    // If the person being chatted with has an account, their profile can
+    // tell the agent how to address them naturally. Guests/"someone else"
+    // have no verified identity — no lookup.
+    const gender = anonymous
+      ? undefined
+      : personKey === "self"
+        ? user?.gender
+        : (await profileByPhone(personKey))?.gender;
+
     const res = await fetch(
       `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
       { headers: { "xi-api-key": requireEnv(config.elevenlabs.apiKey, "ELEVENLABS_API_KEY") } },
@@ -189,7 +202,7 @@ export async function POST(request: NextRequest) {
       token: data.token,
       language,
       firstMessage,
-      chatPrompt: chatPrompt(ahbeng, name, mem?.summary ?? null, specialNote),
+      chatPrompt: chatPrompt(ahbeng, name, mem?.summary ?? null, specialNote, gender),
       // Optional faster model — same setting the phone calls use.
       chatLlm: config.elevenlabs.fastLlm || undefined,
       dynamicVariables: {
@@ -216,6 +229,8 @@ export async function POST(request: NextRequest) {
         affirmation_call_id: "",
         // Fallback path for the Ah Beng dashboard prompt's {{special_note}}.
         special_note: specialNote,
+        // Fallback for the dashboard prompts' {{caller_gender}}.
+        caller_gender: gender ?? "unknown",
       },
     });
   } catch (err) {

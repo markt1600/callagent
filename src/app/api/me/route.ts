@@ -78,6 +78,9 @@ export async function PATCH(request: NextRequest) {
       user.emergencyContact = undefined;
     }
   }
+  if (body.gender !== undefined) {
+    user.gender = (["female", "male", "other"] as const).find((g) => g === body.gender);
+  }
   if (body.buddyLanguage !== undefined) {
     user.buddyLanguage = (["en", "ja", "zh", "th", "vi", "de", "ko", "fr"] as const).find(
       (l) => l === body.buddyLanguage,

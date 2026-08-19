@@ -15,7 +15,7 @@ import { config, requireEnv } from "./config";
 import { chargeForCall } from "./credits";
 import { tzOffsetHours } from "./callWindow";
 import { LANGUAGE_NAMES, outboundCallWithLanguage } from "./buddy";
-import { loadMemory, phonePersonKey } from "./memory";
+import { loadMemory, phonePersonKey, profileByPhone } from "./memory";
 import { formatInDestination } from "./phone";
 import { getOrSynthesize } from "./phraseLibrary";
 import { buildTwiml, twilioClient } from "./twilioClient";
@@ -36,6 +36,8 @@ LANGUAGE: conduct the entire call in {{call_language}}, warm and soothing. If th
 
 MEMORY — what you remember about {{caller_name}} from previous conversations: {{memory}}
 Weave it in naturally, the way a friend would ("how did the move go?") — never recite it as a list, and never claim to remember anything that is not in it. Whatever you learn in this conversation is remembered automatically for next time.
+
+{{caller_name}}'s gender (from their account, if known): {{caller_gender}}. Use it ONLY to speak naturally — correct pronouns and forms of address — and never remark on it. If "unknown", simply avoid gendered terms.
 
 CALL SCREENING: the phone may be answered by an automated screening service (e.g. iPhone call screening asking you to state your name and the reason for calling) rather than {{caller_name}}. If you hear an automated prompt asking who you are or why you are calling, respond clearly: "There is a personal message for {{caller_name}} on behalf of {{requester_name}}." Then wait patiently — do not deliver the message to the screener. When a real person comes on the line, start over warmly with the identity confirmation. If the call goes to VOICEMAIL (a greeting followed by a beep), leave a short warm message: say you are calling on behalf of {{requester_name}}, deliver the message ONCE, say goodbye ONCE, then END THE CALL immediately with your end-call tool. Nobody will reply to a voicemail — never wait for a response, never speak again after your goodbye.
 
@@ -139,6 +141,8 @@ LANGUAGE: you speak ONLY English (Singlish) and Chinese (Singapore-style Mandari
 
 MEMORY — what you remember about {{caller_name}} from before: {{memory}}
 Use it like a real friend lah — bring things up naturally ("eh, how's the new job, still jialat ah?"), don't recite it like reading a report, and don't anyhow claim to remember things that are not in there. What they tell you now, you remember next time one.
+
+{{caller_name}}'s gender (from their account, if known): {{caller_gender}}. Use it ONLY to speak naturally — right pronouns, right way of addressing them ("bro"/"sis" etc.) — never comment on it. If "unknown", just keep it neutral.
 
 CALL SCREENING: if an automated screening service answers and asks who you are or why you're calling, say: "Oi, got personal message for {{caller_name}} lah, from {{requester_name}}. Not scam, faster put them on leh." Then wait — do not deliver the message to the screener. When a real person comes on, start over with the identity check. If you reach VOICEMAIL (greeting then beep): grumble once ("aiyo, voicemail again"), say you're calling for {{requester_name}}, deliver the message ONCE, one goodbye, then END THE CALL immediately with your end-call tool. Nobody replies to voicemail — never speak again after your goodbye.
 
@@ -387,6 +391,11 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
     if (mem?.summary) memoryText = mem.summary;
   }
 
+  // If the recipient has their own account, their profile can tell the agent
+  // how to address them naturally.
+  const recipientProfile = await profileByPhone(phonePersonKey(a.phoneNumber));
+  const callerGender = recipientProfile?.gender ?? "unknown";
+
   const language = ahbeng ? (a.language === "zh" ? "zh" : "en") : (a.language ?? "en");
   const firstMessage = a.checkIn
     ? ahbeng
@@ -414,6 +423,7 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
         first_message: firstMessage,
         affirmation_call_id: a.id,
         special_note: specialNote,
+        caller_gender: callerGender,
       },
     },
     language,

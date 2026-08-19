@@ -15,8 +15,19 @@
 
 import { anthropic, assertNotRefusal } from "./claude";
 import { config } from "./config";
-import { getJSON, setJSON, store } from "./store";
+import { getJSON, listJSON, setJSON, store } from "./store";
 import type { CallTurn, PersonMemory, UserProfile } from "./types";
+
+/**
+ * The account (if any) whose saved contact number matches these phone
+ * digits — how the agents learn things a person put on their own profile
+ * (e.g. gender) when calling or chatting with them.
+ */
+export async function profileByPhone(digits: string): Promise<UserProfile | null> {
+  if (!digits) return null;
+  const profiles = await listJSON<UserProfile>("user:");
+  return profiles.find((p) => (p.contactPhone ?? "").replace(/\D/g, "") === digits) ?? null;
+}
 
 const MAX_SUMMARY_CHARS = 1500;
 

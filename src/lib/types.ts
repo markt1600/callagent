@@ -59,6 +59,8 @@ export interface UserProfile {
   bookingName?: string;
   /** Pre-populated guest contact number for new reservations */
   contactPhone?: string;
+  /** Optional — lets the agents speak naturally (pronouns, forms of address). */
+  gender?: "female" | "male" | "other";
   /** Set once the save-Agent-M-contact prompt has been shown */
   contactCardPromptedAt?: string;
   /** Call-credit balance. Absent = untouched starting grant. */

@@ -30,6 +30,7 @@ export default function AccountPage() {
   const [restaurants, setRestaurants] = useState<SavedRestaurant[]>([]);
   const [bookingName, setBookingName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [gender, setGender] = useState("");
   const [ec, setEc] = useState({ name: "", phone: "", email: "", codeword: "", language: "" });
   const [buddyLanguage, setBuddyLanguage] = useState("");
 
@@ -127,6 +128,7 @@ export default function AccountPage() {
       if (data.user) {
         setBookingName(data.user.bookingName ?? "");
         setContactPhone(data.user.contactPhone ?? "");
+        setGender(data.user.gender ?? "");
         setEc({
           name: data.user.emergencyContact?.name ?? "",
           phone: data.user.emergencyContact?.phone ?? "",
@@ -164,6 +166,7 @@ export default function AccountPage() {
         body: JSON.stringify({
           bookingName,
           contactPhone,
+          gender,
           buddyLanguage: buddyLanguage || undefined,
           emergencyContact: ec.name.trim()
             ? {
@@ -334,6 +337,13 @@ export default function AccountPage() {
             />
             <label>Contact number (the number given to restaurants)</label>
             <PhoneInput value={contactPhone} onChange={setContactPhone} />
+            <label>Gender (optional — helps the agents speak naturally)</label>
+            <select value={gender} onChange={(e) => setGender(e.target.value)}>
+              <option value="">Prefer not to say</option>
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+              <option value="other">Other</option>
+            </select>
             <label>Bail out call language</label>
             <select value={buddyLanguage} onChange={(e) => setBuddyLanguage(e.target.value)}>
               <option value="">English (default)</option>
