@@ -200,6 +200,7 @@ export async function POST(request: NextRequest) {
           text: t.message!,
         }));
       affirmation.summary = data.analysis?.transcript_summary;
+      affirmation.summaryAt = new Date().toISOString();
       affirmation.status = "completed";
       // The listing sorts by latest activity — a completed call rises to
       // the top even if it was scheduled long ago (or recurs).

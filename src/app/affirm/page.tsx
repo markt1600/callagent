@@ -662,12 +662,17 @@ export default function AffirmPage() {
             )}
             {a.smsSentAt && (
               <div className="meta" style={{ marginTop: "0.3rem" }}>
-                📱 Missed-call SMS sent — they were told to look out for the agent&apos;s
-                number.
+                📱 Missed-call SMS sent {formatInDestination(a.smsSentAt, a.phoneNumber)} —
+                they were told to look out for the agent&apos;s number.
               </div>
             )}
             {a.summary && (
               <div className="meta" style={{ marginTop: "0.3rem" }}>
+                {a.summaryAt ? (
+                  <>
+                    <strong>Call on {formatInDestination(a.summaryAt, a.phoneNumber)}:</strong>{" "}
+                  </>
+                ) : null}
                 {a.summary}
               </div>
             )}
