@@ -681,11 +681,13 @@ async function sendMissedCallSms(a: AffirmationCall): Promise<void> {
 
 /** Apply the retry policy after a no-answer. */
 export async function handleAffirmationNoAnswer(a: AffirmationCall): Promise<void> {
-  // Recurring calls get a tighter budget: ONE retry for daily calls, three
-  // for monthly/annual. When it's used up, the message is delivered by SMS
-  // and the call moves on to its next occurrence.
+  // Recurring calls get a tighter budget: daily calls DON'T retry at all
+  // (tomorrow's call is around the corner — a miss goes straight to SMS);
+  // monthly/annual calls retry three times. When the budget is used up,
+  // the message is delivered by SMS and the call moves on to its next
+  // occurrence.
   if (a.recurrence) {
-    const maxRetries = a.recurrence === "daily" ? 1 : 3;
+    const maxRetries = a.recurrence === "daily" ? 0 : 3;
     const retriesSoFar = a.attempts - 1; // the first dial isn't a retry
     if (retriesSoFar < maxRetries) {
       a.callAt = new Date(Date.now() + HOUR_MS).toISOString();
@@ -695,7 +697,7 @@ export async function handleAffirmationNoAnswer(a: AffirmationCall): Promise<voi
       return;
     }
     await sendFinalMessageSms(a);
-    a.error = `No answer after ${maxRetries === 1 ? "one retry" : `${maxRetries} retries`} — message sent by SMS; moving to the next occurrence`;
+    a.error = `No answer${maxRetries > 0 ? ` after ${maxRetries} retries` : ""} — message sent by SMS; moving to the next occurrence`;
     a.lastActivityAt = new Date().toISOString();
     await scheduleNextOccurrence(a);
     return;
