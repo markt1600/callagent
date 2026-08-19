@@ -660,6 +660,12 @@ export default function AffirmPage() {
                 “{a.message.length > 140 ? `${a.message.slice(0, 140)}…` : a.message}”
               </div>
             )}
+            {a.status === "scheduled" && a.attempts > 0 && (
+              <div className="meta" style={{ marginTop: "0.3rem" }}>
+                ☎️ No answer yet — the agent will try again at{" "}
+                {formatInDestination(a.callAt, a.phoneNumber)}.
+              </div>
+            )}
             {a.smsSentAt && (
               <div className="meta" style={{ marginTop: "0.3rem" }}>
                 📱 Missed-call SMS sent {formatInDestination(a.smsSentAt, a.phoneNumber)} —
