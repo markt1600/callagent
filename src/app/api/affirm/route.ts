@@ -16,7 +16,12 @@ export async function GET() {
     const user = await getSessionUser();
     let calls = await listJSON<AffirmationCall>("affirm:");
     calls = calls.filter((a) => (user ? a.userId === user.id : !a.userId));
-    calls.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    // Latest ACTIVITY first: a call that just ran (even if scheduled long
+    // ago, or recurring) rises to the top instead of staying buried at its
+    // creation date.
+    calls.sort((a, b) =>
+      (b.lastActivityAt ?? b.createdAt).localeCompare(a.lastActivityAt ?? a.createdAt),
+    );
     return NextResponse.json({ affirmationCalls: calls });
   } catch (err) {
     return NextResponse.json(

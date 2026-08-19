@@ -375,6 +375,7 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
   a.attempts += 1;
   a.attemptsInCycle += 1;
   a.status = "calling";
+  a.lastActivityAt = new Date().toISOString();
   await setJSON(`affirm:${a.id}`, a);
 
   // Per-person memory: a compact rolling summary of previous conversations
@@ -475,6 +476,7 @@ async function placeRecordedCall(a: AffirmationCall): Promise<void> {
   a.attempts += 1;
   a.attemptsInCycle += 1;
   a.status = "calling";
+  a.lastActivityAt = new Date().toISOString();
   await setJSON(`affirm:${a.id}`, a);
 
   const client = twilioClient();
@@ -497,6 +499,7 @@ export async function dispatchAffirmationCall(a: AffirmationCall): Promise<Affir
   } catch (err) {
     a.status = "failed";
     a.error = err instanceof Error ? err.message : String(err);
+    a.lastActivityAt = new Date().toISOString();
     await setJSON(`affirm:${a.id}`, a);
     console.error(`Affirmation call dispatch failed for ${a.id}:`, err);
   }
@@ -660,6 +663,7 @@ export async function handleAffirmationNoAnswer(a: AffirmationCall): Promise<voi
     }
     a.status = "failed";
     a.error = "No answer after retries on two days";
+    a.lastActivityAt = new Date().toISOString();
   }
   await setJSON(`affirm:${a.id}`, a);
   await sendMissedCallSms(a);

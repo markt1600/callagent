@@ -201,6 +201,9 @@ export async function POST(request: NextRequest) {
         }));
       affirmation.summary = data.analysis?.transcript_summary;
       affirmation.status = "completed";
+      // The listing sorts by latest activity — a completed call rises to
+      // the top even if it was scheduled long ago (or recurs).
+      affirmation.lastActivityAt = new Date().toISOString();
       await setJSON(`affirm:${affirmation.id}`, affirmation);
       // Fold the conversation into the per-recipient memory file so the
       // agent remembers them next time (account-owned calls only).

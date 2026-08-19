@@ -349,6 +349,12 @@ export interface AffirmationCall {
   persona?: "standard" | "ahbeng";
   /** True when Ah Beng's sweetheart mode was active for this call. */
   sweetheart?: boolean;
+  /**
+   * When something last HAPPENED on this call (placed, completed, failed).
+   * The listing sorts by it, so a long-ago-scheduled or recurring call
+   * rises to the top when it actually runs. Falls back to createdAt.
+   */
+  lastActivityAt?: string;
   /** Longer call: after delivering the message, keep chatting until the recipient hangs up */
   longChat?: boolean;
   /** The message to deliver (may be empty when a recording is attached) */

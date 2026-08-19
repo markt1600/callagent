@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
   const callStatus = params.CallStatus ?? "";
   if (callStatus === "completed") {
     a.status = "completed";
+    a.lastActivityAt = new Date().toISOString();
     a.summary = `Your recorded message was played to ${a.recipientName} (or their voicemail).`;
     await setJSON(`affirm:${a.id}`, a);
     await scheduleNextOccurrence(a);
