@@ -638,8 +638,8 @@ const SMS_FINAL_CHECKIN_TEMPLATES: Record<BuddyLanguage, string> = {
 /** Ah Beng's postscript for his sweetheart's missed-call SMS — a reminder,
  *  in his register, that he wants to talk to her. */
 const AHBENG_SMS_SWEET: Record<"en" | "zh", string> = {
-  en: " — Eh, limpeh damn love you hor. Pick up tomorrow lah, I sibei want to talk to you leh. Tonight we meet in your dreams first, don't late.",
-  zh: "——Eh，limpeh sibei 爱你的 hor。明天快点接电话啦，我很想跟你讲话 leh。今晚先在你梦里见，不要迟到。",
+  en: " — Eh, limpeh damn love you hor. Next time faster pick up lah, I sibei want to talk to you leh. Tonight we meet in your dreams first, don't late.",
+  zh: "——Eh，limpeh sibei 爱你的 hor。下次快点接电话啦，我很想跟你讲话 leh。今晚先在你梦里见，不要迟到。",
 };
 
 /**
@@ -748,6 +748,12 @@ export async function handleAffirmationNoAnswer(a: AffirmationCall): Promise<voi
     a.status = "failed";
     a.error = "No answer after retries on two days";
     a.lastActivityAt = new Date().toISOString();
+    // His sweetheart never loses the message: even a one-time call that
+    // gives up delivers it by SMS, sweet postscript included.
+    if (a.sweetheart) {
+      await sendFinalMessageSms(a);
+      a.error += " — message sent by SMS";
+    }
   }
   await setJSON(`affirm:${a.id}`, a);
   await sendMissedCallSms(a);
