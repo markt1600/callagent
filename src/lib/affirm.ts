@@ -547,6 +547,8 @@ export async function scheduleNextOccurrence(a: AffirmationCall): Promise<boolea
   a.attemptsInCycle = 0;
   a.cycle = 1;
   a.lastConversationId = undefined;
+  // A fresh occurrence gets a fresh heads-up SMS if it too goes unanswered.
+  a.smsSentAt = undefined;
   await setJSON(`affirm:${a.id}`, a);
   return true;
 }
@@ -608,6 +610,51 @@ const SMS_CHECKIN_TEMPLATES: Record<BuddyLanguage, string> = {
   fr: "Ceci n'est pas une arnaque. {req} nous a demandé d'appeler pour prendre de tes nouvelles — nous venons d'essayer. Nous réessaierons à {time}. Guette un appel du {num}, ou enregistre ce numéro dans tes contacts.",
 };
 
+/** Final SMS when a recurring call's retries are used up: deliver the
+ *  message itself, and who it is from. */
+const SMS_FINAL_MESSAGE_TEMPLATES: Record<BuddyLanguage, string> = {
+  en: 'This is not a scam. We called but could not reach you. {req} wanted you to hear this message: "{msg}"',
+  ja: "これは詐欺ではありません。お電話しましたがつながりませんでした。{req}さんからあなたへのメッセージです：「{msg}」",
+  zh: "这不是诈骗信息。我们来电未能接通。{req}想让你听到这段话：“{msg}”",
+  th: 'นี่ไม่ใช่ข้อความหลอกลวง เราโทรหาคุณแต่ติดต่อไม่ได้ {req}อยากส่งข้อความนี้ถึงคุณ: "{msg}"',
+  vi: 'Đây không phải lừa đảo. Chúng tôi đã gọi nhưng không liên lạc được với bạn. {req} muốn gửi bạn lời nhắn này: "{msg}"',
+  de: 'Dies ist kein Betrug. Wir haben angerufen, dich aber nicht erreicht. {req} wollte dir diese Nachricht zukommen lassen: "{msg}"',
+  ko: "사기 문자가 아닙니다. 전화드렸지만 연결되지 않았습니다. {req}님이 전하고 싶은 메시지입니다: “{msg}”",
+  fr: "Ceci n'est pas une arnaque. Nous avons appelé sans pouvoir te joindre. {req} voulait te transmettre ce message : « {msg} »",
+};
+
+/** Same, when there is no message text (check-in calls, voice recordings). */
+const SMS_FINAL_CHECKIN_TEMPLATES: Record<BuddyLanguage, string> = {
+  en: "This is not a scam. {req} asked us to check in on you, but we couldn't reach you by phone — they are thinking of you.",
+  ja: "これは詐欺ではありません。{req}さんに頼まれてあなたの様子をうかがおうとしましたが、つながりませんでした。{req}さんはあなたのことを気にかけています。",
+  zh: "这不是诈骗信息。{req}托我们打电话问候你，但未能接通。{req}很挂念你。",
+  th: "นี่ไม่ใช่ข้อความหลอกลวง {req}ฝากให้เราโทรถามข่าวคุณ แต่เราติดต่อคุณไม่ได้ {req}คิดถึงคุณนะ",
+  vi: "Đây không phải lừa đảo. {req} nhờ chúng tôi gọi hỏi thăm bạn nhưng không liên lạc được. {req} luôn nghĩ đến bạn.",
+  de: "Dies ist kein Betrug. {req} hat uns gebeten, nach dir zu sehen, wir konnten dich aber nicht erreichen. {req} denkt an dich.",
+  ko: "사기 문자가 아닙니다. {req}님이 안부를 물어봐 달라고 하셨지만 전화가 연결되지 않았습니다. {req}님이 당신을 생각하고 있어요.",
+  fr: "Ceci n'est pas une arnaque. {req} nous a demandé de prendre de tes nouvelles, mais nous n'avons pas pu te joindre. {req} pense à toi.",
+};
+
+/**
+ * A recurring call's retries are used up: deliver the message BY SMS (with
+ * who it is from) instead of failing silently. Non-fatal.
+ */
+async function sendFinalMessageSms(a: AffirmationCall): Promise<void> {
+  const from = config.twilio.fromNumber;
+  if (!from) return;
+  try {
+    const hasText = Boolean(a.message) && !a.checkIn && !a.recordingUrl;
+    const templates = hasText ? SMS_FINAL_MESSAGE_TEMPLATES : SMS_FINAL_CHECKIN_TEMPLATES;
+    const body = (templates[a.language ?? "en"] ?? templates.en)
+      .replaceAll("{req}", a.requesterName)
+      .replaceAll("{msg}", a.message ?? "");
+    await twilioClient().messages.create({ to: a.phoneNumber, from, body });
+    a.smsSentAt = new Date().toISOString();
+  } catch (err) {
+    console.error(`Final message SMS failed for ${a.id} (continuing):`, err);
+  }
+}
+
 /**
  * One-time heads-up SMS after the FIRST missed attempt — the callee may be
  * silencing unknown numbers (iOS call screening etc.), so tell them who is
@@ -634,6 +681,26 @@ async function sendMissedCallSms(a: AffirmationCall): Promise<void> {
 
 /** Apply the retry policy after a no-answer. */
 export async function handleAffirmationNoAnswer(a: AffirmationCall): Promise<void> {
+  // Recurring calls get a tighter budget: ONE retry for daily calls, three
+  // for monthly/annual. When it's used up, the message is delivered by SMS
+  // and the call moves on to its next occurrence.
+  if (a.recurrence) {
+    const maxRetries = a.recurrence === "daily" ? 1 : 3;
+    const retriesSoFar = a.attempts - 1; // the first dial isn't a retry
+    if (retriesSoFar < maxRetries) {
+      a.callAt = new Date(Date.now() + HOUR_MS).toISOString();
+      a.status = "scheduled";
+      await setJSON(`affirm:${a.id}`, a);
+      await sendMissedCallSms(a);
+      return;
+    }
+    await sendFinalMessageSms(a);
+    a.error = `No answer after ${maxRetries === 1 ? "one retry" : `${maxRetries} retries`} — message sent by SMS; moving to the next occurrence`;
+    a.lastActivityAt = new Date().toISOString();
+    await scheduleNextOccurrence(a);
+    return;
+  }
+
   let exhausted = false;
   const rollToNextDay = () => {
     if (a.cycle >= 2) {
@@ -667,12 +734,6 @@ export async function handleAffirmationNoAnswer(a: AffirmationCall): Promise<voi
   }
 
   if (exhausted) {
-    if (a.recurrence) {
-      // A recurring call skips the missed occurrence and moves on.
-      a.error = "No answer after retries on two days — skipping to the next occurrence";
-      await scheduleNextOccurrence(a);
-      return;
-    }
     a.status = "failed";
     a.error = "No answer after retries on two days";
     a.lastActivityAt = new Date().toISOString();
