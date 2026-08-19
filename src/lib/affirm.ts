@@ -635,6 +635,13 @@ const SMS_FINAL_CHECKIN_TEMPLATES: Record<BuddyLanguage, string> = {
   fr: "Ceci n'est pas une arnaque. {req} nous a demandé de prendre de tes nouvelles, mais nous n'avons pas pu te joindre. {req} pense à toi.",
 };
 
+/** Ah Beng's postscript for his sweetheart's missed-call SMS — a reminder,
+ *  in his register, that he wants to talk to her. */
+const AHBENG_SMS_SWEET: Record<"en" | "zh", string> = {
+  en: " — Eh, limpeh damn love you hor. Pick up tomorrow lah, I sibei want to talk to you leh. Tonight we meet in your dreams first, don't late.",
+  zh: "——Eh，limpeh sibei 爱你的 hor。明天快点接电话啦，我很想跟你讲话 leh。今晚先在你梦里见，不要迟到。",
+};
+
 /**
  * A recurring call's retries are used up: deliver the message BY SMS (with
  * who it is from) instead of failing silently. Non-fatal.
@@ -645,9 +652,11 @@ async function sendFinalMessageSms(a: AffirmationCall): Promise<void> {
   try {
     const hasText = Boolean(a.message) && !a.checkIn && !a.recordingUrl;
     const templates = hasText ? SMS_FINAL_MESSAGE_TEMPLATES : SMS_FINAL_CHECKIN_TEMPLATES;
-    const body = (templates[a.language ?? "en"] ?? templates.en)
+    let body = (templates[a.language ?? "en"] ?? templates.en)
       .replaceAll("{req}", a.requesterName)
       .replaceAll("{msg}", a.message ?? "");
+    // His sweetheart gets a sweet reminder that he wants to talk.
+    if (a.sweetheart) body += AHBENG_SMS_SWEET[a.language === "zh" ? "zh" : "en"];
     await twilioClient().messages.create({ to: a.phoneNumber, from, body });
     a.smsSentAt = new Date().toISOString();
   } catch (err) {
