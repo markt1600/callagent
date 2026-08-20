@@ -943,7 +943,14 @@ export default function Dashboard() {
 
           <div className="panel">
             <h2>Reservations</h2>
-            {reservations.length === 0 && <p className="sub">None yet.</p>}
+            {reservations.length === 0 && (
+              <p className="sub">
+                None yet.
+                {me && !user
+                  ? " You're in guest mode — reservations aren't tied to you, so they won't be listed here. Sign in with Google (top right) to keep and track the reservations you make."
+                  : ""}
+              </p>
+            )}
             {reservations.map((r) => (
               <div
                 key={r.id}
