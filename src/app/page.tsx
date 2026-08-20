@@ -515,37 +515,38 @@ export default function Dashboard() {
       >
         Agentic <em>Concierge</em>
       </h1>
+      <nav className="tabs">
+        <a className="active">Reservations</a>
+        <a href="/buddy">Bail Out Call</a>
+        <a href="/affirm">Affirmation Call</a>
+        <a href="/chat">Live Chat</a>
+        <a href="/account">Account</a>
+        {me?.isAdmin && <a href="/admin">Admin</a>}
+      </nav>
       <p className="sub">
         The AI concierge agent that crosses the line from virtual to reality — real phone
         calls, placed for you.
       </p>
 
-      <div className="row" style={{ justifyContent: "space-between", alignItems: "center", margin: "0.6rem 0 1.2rem" }}>
-        <nav className="tabs" style={{ margin: 0 }}>
-          <a className="active">Reservations</a>
-          <a href="/buddy">Bail Out Call</a>
-          <a href="/affirm">Affirmation Call</a>
-          <a href="/chat">Live Chat</a>
-          <a href="/account">Account</a>
-          {me?.isAdmin && <a href="/admin">Admin</a>}
-        </nav>
-        {me && (
-          <span className="row" style={{ alignItems: "center", gap: "0.6rem", flexWrap: "nowrap" }}>
-            {user ? (
-              <a href="/account" className="userchip" title="Account">
-                {user.bookingName ?? user.name ?? user.email}
-              </a>
-            ) : (
-              <span className="sub" style={{ margin: 0 }}>
-                Guest mode
-              </span>
-            )}
-            <a className="admin-link" onClick={signOut} style={{ cursor: "pointer" }}>
-              {user ? "Sign out" : "Sign in"}
+      {me && (
+        <div
+          className="row"
+          style={{ justifyContent: "flex-end", alignItems: "center", gap: "0.6rem", flexWrap: "nowrap", margin: "0 0 1rem" }}
+        >
+          {user ? (
+            <a href="/account" className="userchip" title="Account">
+              {user.bookingName ?? user.name ?? user.email}
             </a>
-          </span>
-        )}
-      </div>
+          ) : (
+            <span className="sub" style={{ margin: 0 }}>
+              Guest mode
+            </span>
+          )}
+          <a className="admin-link" onClick={signOut} style={{ cursor: "pointer" }}>
+            {user ? "Sign out" : "Sign in"}
+          </a>
+        </div>
+      )}
 
       {user && !user.contactPhone && !phonePromptHidden && (
         <PhoneNumberPrompt

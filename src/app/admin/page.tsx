@@ -234,10 +234,17 @@ export default function AdminPage() {
       <h1>
         <em>Admin</em>
       </h1>
+      <nav className="tabs">
+        <a href="/">Reservations</a>
+        <a href="/buddy">Bail Out Call</a>
+        <a href="/affirm">Affirmation Call</a>
+        <a href="/chat">Live Chat</a>
+        <a href="/account">Account</a>
+        <a className="active">Admin</a>
+      </nav>
       <p className="sub">
-        <a className="admin-link" href="/">
-          ← Back to reservations
-        </a>
+        Owner-only controls: reservations across all users, credit costs, accounts, and
+        memory files.
       </p>
 
       {access === "denied" ? (
