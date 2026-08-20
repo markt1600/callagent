@@ -17,13 +17,15 @@ export async function GET(request: NextRequest) {
   try {
     let reservations = await listJSON<ReservationRequest>("res:");
     // Admin (valid PIN + owner account) sees everything; a signed-in user
-    // sees their own reservations; guests see the unowned (guest) ones.
+    // sees ONLY their own reservations; guests see none — a guest has no
+    // identity to tie reservations to, and unowned reservations from other
+    // guests must never be shown to them.
     const isAdmin = request.headers.get("x-admin-pin")
       ? (await requireAdminRequest(request)) === null
       : false;
     if (!isAdmin) {
       const user = await getSessionUser();
-      reservations = reservations.filter((r) => (user ? r.userId === user.id : !r.userId));
+      reservations = user ? reservations.filter((r) => r.userId === user.id) : [];
     }
     reservations.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return NextResponse.json({ reservations });
