@@ -503,7 +503,7 @@ export default function Dashboard() {
   }
 
   return (
-    <main>
+    <main style={{ maxWidth: 640 }}>
       <div className="eyebrow">marktan.ai · phone concierge</div>
       <h1
         onClick={() => {
@@ -524,8 +524,10 @@ export default function Dashboard() {
         {me?.isAdmin && <a href="/admin">Admin</a>}
       </nav>
       <p className="sub">
-        The AI concierge agent that crosses the line from virtual to reality — real phone
-        calls, placed for you.
+        Fill in the reservation form to get started — the AI agent calls the restaurant
+        immediately (or at your scheduled time). When the call finishes, open the
+        reservation below to see its call log, transcript, and outcome; if you provided an
+        email, a confirmation with the transcript is sent there too.
       </p>
 
       {me && (
@@ -560,8 +562,6 @@ export default function Dashboard() {
         />
       )}
 
-      <div className="grid">
-        <div>
           <div className="panel">
             <h2>{editingId ? "Edit reservation request" : "New reservation request"}</h2>
             {editingId && (
@@ -986,9 +986,7 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-        </div>
 
-        <div>
           {selected ? (
             <>
               <div className="panel">
@@ -1199,19 +1197,7 @@ export default function Dashboard() {
                 </div>
               )}
             </>
-          ) : (
-            <div className="panel">
-              <h2>Select a reservation</h2>
-              <p className="sub">
-                Fill in the reservation form to get started — the AI agent calls the
-                restaurant immediately (or at your scheduled time). When the call finishes,
-                open the reservation to see its call log, transcript, and outcome; if you
-                provided an email, a confirmation with the transcript is sent there too.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
+          ) : null}
 
       {me?.isAdmin && (
         <p className="sub" style={{ textAlign: "center", marginTop: "2.5rem", marginBottom: 0 }}>
