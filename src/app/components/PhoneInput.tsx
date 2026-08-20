@@ -24,6 +24,7 @@ const COUNTRIES = [
   { code: "+64", flag: "🇳🇿", name: "New Zealand" },
   { code: "+44", flag: "🇬🇧", name: "United Kingdom" },
   { code: "+49", flag: "🇩🇪", name: "Germany" },
+  { code: "+41", flag: "🇨🇭", name: "Switzerland" },
   { code: "+33", flag: "🇫🇷", name: "France" },
   { code: "+39", flag: "🇮🇹", name: "Italy" },
   { code: "+34", flag: "🇪🇸", name: "Spain" },

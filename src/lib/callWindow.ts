@@ -46,6 +46,7 @@ const TZ_OFFSETS: [string, number][] = [
   ["+64", 12],
   ["+91", 5.5],
   ["+49", 1], // Germany
+  ["+41", 1], // Switzerland
   ["+33", 1], // France
   ["+44", 0],
   ["+1", -5],

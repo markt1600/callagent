@@ -32,6 +32,7 @@ const COUNTRIES: CountryInfo[] = [
   { prefix: "+44", name: "United Kingdom", trunk: "0" },
   { prefix: "+33", name: "France", trunk: "0" },
   { prefix: "+49", name: "Germany", trunk: "0" },
+  { prefix: "+41", name: "Switzerland", trunk: "0" },
   { prefix: "+39", name: "Italy", trunk: "" },
   { prefix: "+34", name: "Spain", trunk: "" },
   { prefix: "+1", name: "US / Canada", trunk: "" },
