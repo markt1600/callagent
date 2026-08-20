@@ -48,10 +48,16 @@ export const config = {
     authToken: process.env.TWILIO_AUTH_TOKEN || "",
     fromNumber: process.env.TWILIO_FROM_NUMBER || "",
   },
-  /** Public origin of this deployment, e.g. https://callagent.vercel.app */
+  /** Public origin of this deployment, e.g. https://callagent.vercel.app.
+   *  Prefers the stable production domain over the per-deployment URL so
+   *  webhooks and link previews always resolve. */
   baseUrl:
     process.env.PUBLIC_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"),
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000"),
   blob: resolveBlob(),
   kv: resolveKv(),
 };

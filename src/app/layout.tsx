@@ -23,9 +23,16 @@ const APP_NAME = "Agentic Concierge";
 const DESCRIPTION =
   "The AI concierge agent that crosses the line from virtual to reality — real phone calls, placed for you.";
 
+// Prefer the STABLE production domain: link previews (WhatsApp, iMessage)
+// fetch og:image from this base, and the per-deployment VERCEL_URL may be
+// unreachable to their crawlers (deployment protection) or simply wrong.
 const baseUrl =
   process.env.PUBLIC_BASE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000");
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
