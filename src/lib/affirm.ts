@@ -388,6 +388,9 @@ export async function placeAffirmationCall(a: AffirmationCall): Promise<void> {
   a.attemptsInCycle += 1;
   a.status = "calling";
   a.lastActivityAt = new Date().toISOString();
+  // A fresh dial supersedes any earlier failure note (e.g. a previous
+  // occurrence's "no answer — message sent by SMS").
+  a.error = undefined;
   await setJSON(`affirm:${a.id}`, a);
 
   // Per-person memory: a compact rolling summary of previous conversations
@@ -495,6 +498,7 @@ async function placeRecordedCall(a: AffirmationCall): Promise<void> {
   a.attemptsInCycle += 1;
   a.status = "calling";
   a.lastActivityAt = new Date().toISOString();
+  a.error = undefined;
   await setJSON(`affirm:${a.id}`, a);
 
   const client = twilioClient();

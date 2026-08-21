@@ -202,6 +202,8 @@ export async function POST(request: NextRequest) {
       affirmation.summary = data.analysis?.transcript_summary;
       affirmation.summaryAt = new Date().toISOString();
       affirmation.status = "completed";
+      // A completed conversation supersedes any earlier failure note.
+      affirmation.error = undefined;
       // The listing sorts by latest activity — a completed call rises to
       // the top even if it was scheduled long ago (or recurs).
       affirmation.lastActivityAt = new Date().toISOString();

@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
   if (callStatus === "completed") {
     a.status = "completed";
     a.lastActivityAt = new Date().toISOString();
+    a.error = undefined;
     a.summary = `Your recorded message was played to ${a.recipientName} (or their voicemail).`;
     a.summaryAt = new Date().toISOString();
     await setJSON(`affirm:${a.id}`, a);
