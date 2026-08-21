@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
       user.name = identity.name;
       user.picture = identity.picture;
     }
+    user.lastLoginAt = new Date().toISOString();
     await setJSON(key, user);
     if (firstLogin) await recordWelcomeGrant(user.id);
     await setSessionCookie(user.id);

@@ -63,6 +63,8 @@ export interface UserProfile {
   gender?: "female" | "male" | "other";
   /** Set once the save-Agent-M-contact prompt has been shown */
   contactCardPromptedAt?: string;
+  /** Updated on every Google sign-in (feeds Admin's "last active"). */
+  lastLoginAt?: string;
   /** Call-credit balance. Absent = untouched starting grant. */
   credits?: number;
   /** Preferred Buddy Call language — prefills the buddy form. */

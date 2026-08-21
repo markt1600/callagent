@@ -36,6 +36,7 @@ export default function AdminPage() {
       contactPhone: string | null;
       bookingName?: string;
       buddyLanguage?: string;
+      lastActiveAt?: string | null;
       friends?: Array<{ id: string; name: string; phoneNumber: string; language: string }>;
     }>
   >([]);
@@ -411,6 +412,9 @@ export default function AdminPage() {
                       {u.createdAt
                         ? ` · joined ${new Date(u.createdAt).toLocaleDateString()}`
                         : ""}
+                      {u.lastActiveAt
+                        ? ` · last active ${new Date(u.lastActiveAt).toLocaleDateString()}`
+                        : " · not active yet"}
                     </div>
                   </div>
                   <span className="row" style={{ flexShrink: 0, gap: "0.5rem", alignItems: "center" }}>

@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminRequest } from "@/lib/auth";
 import { creditsOf } from "@/lib/credits";
 import { getJSON, listJSON, setJSON } from "@/lib/store";
-import type { Friend, UserProfile } from "@/lib/types";
+import type { AffirmationCall, BuddyCall, Friend, UserProfile } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -13,6 +13,28 @@ export async function GET(request: NextRequest) {
   if (denied) return NextResponse.json({ error: denied }, { status: 401 });
 
   const profiles = await listJSON<UserProfile>("user:");
+
+  // "Last active" inputs: the last sign-in, or the last SUCCESSFUL call
+  // placed to the user's number (missed/failed calls don't count).
+  const affirms = await listJSON<AffirmationCall>("affirm:");
+  const buddies = await listJSON<BuddyCall>("buddy:");
+  const lastSuccessfulCallTo = (digits: string): string => {
+    if (!digits) return "";
+    let latest = "";
+    for (const a of affirms) {
+      if (a.status !== "completed") continue;
+      if (a.phoneNumber.replace(/\D/g, "") !== digits) continue;
+      const at = a.summaryAt ?? a.lastActivityAt ?? a.callAt;
+      if (at && at > latest) latest = at;
+    }
+    for (const b of buddies) {
+      if (b.status !== "completed") continue;
+      if (b.phoneNumber.replace(/\D/g, "") !== digits) continue;
+      if (b.callAt && b.callAt > latest) latest = b.callAt;
+    }
+    return latest;
+  };
+
   const users = await Promise.all(
     profiles.map(async (u) => ({
       id: u.id,
@@ -23,6 +45,10 @@ export async function GET(request: NextRequest) {
       contactPhone: u.contactPhone ?? null,
       bookingName: u.bookingName ?? "",
       buddyLanguage: u.buddyLanguage ?? "",
+      lastActiveAt:
+        [u.lastLoginAt ?? "", lastSuccessfulCallTo((u.contactPhone ?? "").replace(/\D/g, ""))]
+          .sort()
+          .pop() || null,
       friends: (await listJSON<Friend>(`userfriend:${u.id}:`)).map((f) => ({
         id: f.id,
         name: f.name,
