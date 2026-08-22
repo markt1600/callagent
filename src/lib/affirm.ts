@@ -715,8 +715,13 @@ export async function handleAffirmationNoAnswer(a: AffirmationCall): Promise<voi
       await sendMissedCallSms(a);
       return;
     }
+    const smsBefore = a.smsSentAt;
     await sendFinalMessageSms(a);
-    a.error = `No answer${maxRetries > 0 ? ` after ${maxRetries} retries` : ""} — message sent by SMS; moving to the next occurrence`;
+    a.error = `No answer${maxRetries > 0 ? ` after ${maxRetries} retries` : ""} — ${
+      a.smsSentAt && a.smsSentAt !== smsBefore
+        ? `message sent by SMS ${formatInDestination(a.smsSentAt, a.phoneNumber)}`
+        : "the SMS could not be sent"
+    }; moving to the next occurrence`;
     a.lastActivityAt = new Date().toISOString();
     await scheduleNextOccurrence(a);
     return;
@@ -761,8 +766,12 @@ export async function handleAffirmationNoAnswer(a: AffirmationCall): Promise<voi
     // His sweetheart never loses the message: even a one-time call that
     // gives up delivers it by SMS, sweet postscript included.
     if (a.sweetheart) {
+      const smsBefore = a.smsSentAt;
       await sendFinalMessageSms(a);
-      a.error += " — message sent by SMS";
+      a.error +=
+        a.smsSentAt && a.smsSentAt !== smsBefore
+          ? ` — message sent by SMS ${formatInDestination(a.smsSentAt, a.phoneNumber)}`
+          : " — the SMS could not be sent";
     }
   }
   await setJSON(`affirm:${a.id}`, a);
