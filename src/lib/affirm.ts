@@ -656,17 +656,72 @@ const AHBENG_SMS_SWEET: Record<"en" | "zh", string> = {
  * A recurring call's retries are used up: deliver the message BY SMS (with
  * who it is from) instead of failing silently. Non-fatal.
  */
+/** The fixed anti-scam opener, per language — always the SMS's first words. */
+const SCAM_PREFIX: Record<BuddyLanguage, string> = {
+  en: "This is not a scam.",
+  ja: "これは詐欺ではありません。",
+  zh: "这不是诈骗信息。",
+  th: "นี่ไม่ใช่ข้อความหลอกลวง",
+  vi: "Đây không phải lừa đảo.",
+  de: "Dies ist kein Betrug.",
+  ko: "사기 문자가 아닙니다.",
+  fr: "Ceci n'est pas une arnaque.",
+};
+
+/**
+ * Freshly worded SMS body for each miss — a daily recurring call would
+ * otherwise send the identical text every day. The anti-scam prefix and the
+ * verbatim message are fixed; the framing (and Ah Beng's sweetheart line)
+ * vary. Null on any failure — the caller falls back to the templates.
+ */
+async function composeFinalSms(a: AffirmationCall, hasText: boolean): Promise<string | null> {
+  try {
+    const lang = a.language ?? "en";
+    const client = anthropic();
+    const response = await client.messages.create({
+      model: config.anthropic.fastModel,
+      max_tokens: 300,
+      messages: [
+        {
+          role: "user",
+          content: `Write the body of a short, warm SMS (under 280 characters) in ${LANGUAGE_NAMES[lang] ?? "English"}. Context: an agent phoned ${a.recipientName} on behalf of ${a.requesterName} but they didn't pick up${hasText ? ", so the message is delivered by text instead" : ""}.
+
+Requirements:
+- Say we called but couldn't reach them.
+${hasText ? `- Include this message EXACTLY word for word, in quotes, attributed to ${a.requesterName}: "${a.message}"` : `- ${a.requesterName} asked us to check in on them — say ${a.requesterName} is thinking of them.`}
+${a.sweetheart ? `- End with ONE playful line from "Ah Beng" in gruff-affectionate Singlish ("lah", "leh", "limpeh", "sibei"): he loves them, misses talking to them, and tells them to pick up next time. Cheeky and warm, never soppy.` : ""}
+- Vary the wording freely — this goes out after every missed call and must read differently each time.
+- Do NOT mention scams, safety, or that you are an AI. No greetings like "Dear".
+- Output ONLY the SMS text — no surrounding quotes, no explanations.`,
+        },
+      ],
+    });
+    assertNotRefusal(response);
+    const block = response.content.find((b) => b.type === "text");
+    const text = block && block.type === "text" ? block.text.trim() : "";
+    if (!text) return null;
+    return `${SCAM_PREFIX[lang] ?? SCAM_PREFIX.en} ${text}`.slice(0, 640);
+  } catch (err) {
+    console.error(`SMS composition failed for ${a.id} (falling back to template):`, err);
+    return null;
+  }
+}
+
 async function sendFinalMessageSms(a: AffirmationCall): Promise<void> {
   const from = config.twilio.fromNumber;
   if (!from) return;
   try {
     const hasText = Boolean(a.message) && !a.checkIn && !a.recordingUrl;
-    const templates = hasText ? SMS_FINAL_MESSAGE_TEMPLATES : SMS_FINAL_CHECKIN_TEMPLATES;
-    let body = (templates[a.language ?? "en"] ?? templates.en)
-      .replaceAll("{req}", a.requesterName)
-      .replaceAll("{msg}", a.message ?? "");
-    // His sweetheart gets a sweet reminder that he wants to talk.
-    if (a.sweetheart) body += AHBENG_SMS_SWEET[a.language === "zh" ? "zh" : "en"];
+    // Freshly worded each time; templates are the reliability fallback.
+    let body = await composeFinalSms(a, hasText);
+    if (!body) {
+      const templates = hasText ? SMS_FINAL_MESSAGE_TEMPLATES : SMS_FINAL_CHECKIN_TEMPLATES;
+      body = (templates[a.language ?? "en"] ?? templates.en)
+        .replaceAll("{req}", a.requesterName)
+        .replaceAll("{msg}", a.message ?? "");
+      // His sweetheart gets a sweet reminder that he wants to talk.
+      if (a.sweetheart) body += AHBENG_SMS_SWEET[a.language === "zh" ? "zh" : "en"];
+    }
     await twilioClient().messages.create({ to: a.phoneNumber, from, body });
     a.smsSentAt = new Date().toISOString();
   } catch (err) {
