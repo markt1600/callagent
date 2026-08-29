@@ -755,6 +755,22 @@ async function sendMissedCallSms(a: AffirmationCall): Promise<void> {
 
 /** Apply the retry policy after a no-answer. */
 export async function handleAffirmationNoAnswer(a: AffirmationCall): Promise<void> {
+  // A user-triggered "try again now" that didn't connect: restore the
+  // schedule exactly as it was — the manual attempt costs nothing.
+  if (a.manualRetrySnapshot) {
+    const s = a.manualRetrySnapshot;
+    a.manualRetrySnapshot = undefined;
+    a.callAt = s.callAt;
+    a.attempts = s.attempts;
+    a.attemptsInCycle = s.attemptsInCycle;
+    a.cycle = s.cycle;
+    a.status = "scheduled";
+    a.error = `Manual retry didn't connect — next attempt stays at ${formatInDestination(s.callAt, a.phoneNumber)}`;
+    a.lastActivityAt = new Date().toISOString();
+    await setJSON(`affirm:${a.id}`, a);
+    return;
+  }
+
   // Recurring calls get a tighter budget: daily calls DON'T retry at all
   // (tomorrow's call is around the corner — a miss goes straight to SMS);
   // monthly/annual calls retry three times. When the budget is used up,

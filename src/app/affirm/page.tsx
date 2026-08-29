@@ -311,6 +311,23 @@ export default function AffirmPage() {
     await refresh();
   }
 
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  /** Dial a pending call immediately; a miss keeps the original schedule. */
+  async function retryNow(id: string) {
+    setRetryingId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/affirm/${id}/retry`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error || `Retry failed (${res.status})`);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRetryingId(null);
+    }
+  }
+
   async function remove(id: string) {
     if (!window.confirm("Delete this affirmation call?")) return;
     await fetch(`/api/affirm/${id}`, { method: "DELETE" });
@@ -663,7 +680,15 @@ export default function AffirmPage() {
             {a.status === "scheduled" && a.attempts > 0 && (
               <div className="meta" style={{ marginTop: "0.3rem" }}>
                 ☎️ No answer yet — the agent will try again at{" "}
-                {formatInDestination(a.callAt, a.phoneNumber)}.
+                {formatInDestination(a.callAt, a.phoneNumber)}.{" "}
+                <button
+                  className="secondary"
+                  onClick={() => retryNow(a.id)}
+                  disabled={retryingId === a.id}
+                  style={{ marginTop: "0.4rem", minHeight: 0, padding: "0.35rem 0.8rem", fontSize: "0.8rem" }}
+                >
+                  {retryingId === a.id ? "Calling…" : "📞 Try again now"}
+                </button>
               </div>
             )}
             {a.smsSentAt && (
