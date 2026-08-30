@@ -421,14 +421,26 @@ export default function AffirmPage() {
             <option value="now">Call now</option>
             <option value="scheduled">Schedule the call</option>
           </select>
-          {form.callTiming === "scheduled" && (
-            <input
-              type="datetime-local"
-              value={form.callAt}
-              onChange={(e) => setForm({ ...form, callAt: e.target.value })}
-              style={{ flex: "1 1 230px", minWidth: 230 }}
-            />
-          )}
+          {form.callTiming === "scheduled" &&
+            (form.recurrence && form.windowRandom ? (
+              // Random-window mode: only the START DATE matters — the time of
+              // day is drawn from the window, so don't ask for one.
+              <input
+                type="date"
+                value={form.callAt.slice(0, 10)}
+                onChange={(e) =>
+                  setForm({ ...form, callAt: e.target.value ? `${e.target.value}T00:00` : "" })
+                }
+                style={{ flex: "1 1 230px", minWidth: 230 }}
+              />
+            ) : (
+              <input
+                type="datetime-local"
+                value={form.callAt}
+                onChange={(e) => setForm({ ...form, callAt: e.target.value })}
+                style={{ flex: "1 1 230px", minWidth: 230 }}
+              />
+            ))}
         </div>
         {form.callTiming === "scheduled" && (
           <p className="sub" style={{ margin: "0.3rem 0 0" }}>
@@ -480,7 +492,10 @@ export default function AffirmPage() {
                 </div>
                 <p className="sub" style={{ margin: "0.2rem 0 0.6rem" }}>
                   Each occurrence dials at a fresh random time in this window (their local
-                  time). The time on the date you pick below is ignored.
+                  time)
+                  {form.callTiming === "now"
+                    ? " — the first call still goes out right away."
+                    : ", starting on the date chosen above."}
                 </p>
               </>
             )}

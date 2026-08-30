@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { firstRandomWindowTime } from "@/lib/affirm";
 import { getSessionUser } from "@/lib/auth";
 import { BUDDY_LANGUAGES } from "@/lib/buddy";
 import { destinationWallClockToUtc } from "@/lib/phone";
@@ -126,8 +127,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!at) {
       return NextResponse.json({ error: "Call time must be a valid datetime" }, { status: 400 });
     }
-    call.callAt = at.toISOString();
-    call.originalCallAt = at.toISOString();
+    // Random-window calls: the edited date matters, the time of day is drawn
+    // fresh from the window (never in the past).
+    const finalAt = call.randomWindow
+      ? new Date(firstRandomWindowTime(at.toISOString(), call.randomWindow, call.phoneNumber))
+      : at;
+    call.callAt = finalAt.toISOString();
+    call.originalCallAt = finalAt.toISOString();
     call.attempts = 0;
     call.attemptsInCycle = 0;
     call.cycle = 1;
