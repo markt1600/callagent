@@ -16,7 +16,11 @@ import { chargeForCall } from "./credits";
 import { tzOffsetHours } from "./callWindow";
 import { LANGUAGE_NAMES, outboundCallWithLanguage } from "./buddy";
 import { loadMemory, phonePersonKey, profileByPhone } from "./memory";
-import { formatInDestination } from "./phone";
+import {
+  destinationWallClockToUtc,
+  formatInDestination,
+  isoToDestinationWallClock,
+} from "./phone";
 import { getOrSynthesize } from "./phraseLibrary";
 import { buildTwiml, twilioClient } from "./twilioClient";
 import { setJSON } from "./store";
@@ -535,6 +539,60 @@ export async function dispatchAffirmationCall(a: AffirmationCall): Promise<Affir
   return a;
 }
 
+/** Random destination-local time inside the window, on the given instant's
+ *  (destination) date. */
+export function randomTimeInWindow(
+  iso: string,
+  w: { start: string; end: string },
+  phoneNumber: string,
+): string {
+  const date = isoToDestinationWallClock(iso, phoneNumber).slice(0, 10);
+  const [sh, sm] = w.start.split(":").map(Number);
+  const [eh, em] = w.end.split(":").map(Number);
+  const startMin = sh * 60 + sm;
+  const endMin = Math.max(startMin + 1, eh * 60 + em);
+  const pick = startMin + Math.floor(Math.random() * (endMin - startMin));
+  const hh = String(Math.floor(pick / 60)).padStart(2, "0");
+  const mm = String(pick % 60).padStart(2, "0");
+  return destinationWallClockToUtc(`${date}T${hh}:${mm}`, phoneNumber)!.toISOString();
+}
+
+/**
+ * First occurrence for a random-window call: a random time in the window on
+ * the requested (destination-local) date — never in the past. If today's
+ * window is partly gone, pick from what's left; fully gone, start tomorrow.
+ */
+export function firstRandomWindowTime(
+  iso: string,
+  w: { start: string; end: string },
+  phoneNumber: string,
+): string {
+  const [sh, sm] = w.start.split(":").map(Number);
+  const [eh, em] = w.end.split(":").map(Number);
+  const startMin = sh * 60 + sm;
+  const endMin = Math.max(startMin + 1, eh * 60 + em);
+  let date = isoToDestinationWallClock(iso, phoneNumber).slice(0, 10);
+  const nowWall = isoToDestinationWallClock(new Date().toISOString(), phoneNumber);
+  const nowDate = nowWall.slice(0, 10);
+  let lo = startMin;
+  if (date < nowDate) date = nowDate;
+  if (date === nowDate) {
+    const nowMin = Number(nowWall.slice(11, 13)) * 60 + Number(nowWall.slice(14, 16));
+    lo = Math.max(startMin, nowMin + 5);
+    if (lo >= endMin) {
+      // Today's window is over — tomorrow, full window.
+      const d = new Date(`${date}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      date = d.toISOString().slice(0, 10);
+      lo = startMin;
+    }
+  }
+  const pick = lo + Math.floor(Math.random() * Math.max(1, endMin - lo));
+  const hh = String(Math.floor(pick / 60)).padStart(2, "0");
+  const mm = String(pick % 60).padStart(2, "0");
+  return destinationWallClockToUtc(`${date}T${hh}:${mm}`, phoneNumber)!.toISOString();
+}
+
 /** The next recurrence instant, preserving destination wall-clock time. */
 function nextOccurrence(
   iso: string,
@@ -556,7 +614,9 @@ function nextOccurrence(
  */
 export async function scheduleNextOccurrence(a: AffirmationCall): Promise<boolean> {
   if (!a.recurrence) return false;
-  const next = nextOccurrence(a.originalCallAt, a.recurrence, a.phoneNumber);
+  let next = nextOccurrence(a.originalCallAt, a.recurrence, a.phoneNumber);
+  // Random-window calls draw a fresh time inside the window each occurrence.
+  if (a.randomWindow) next = randomTimeInWindow(next, a.randomWindow, a.phoneNumber);
   a.originalCallAt = next;
   a.callAt = next;
   a.status = "scheduled";

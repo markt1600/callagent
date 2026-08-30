@@ -392,6 +392,11 @@ export interface AffirmationCall {
    */
   summaryAt?: string;
   /**
+   * Recurring calls only: each occurrence dials at a RANDOM destination-local
+   * time inside this window (HH:mm–HH:mm) instead of a fixed time.
+   */
+  randomWindow?: { start: string; end: string };
+  /**
    * Set while a user-triggered "try again now" dial is in flight: the
    * schedule state to restore if it doesn't connect, so a failed manual
    * attempt never consumes the retry budget or moves the scheduled time.

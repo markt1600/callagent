@@ -66,6 +66,24 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       ? (body.recurrence as AffirmationCall["recurrence"])
       : undefined;
   }
+  if (body.randomWindowStart !== undefined || body.randomWindowEnd !== undefined) {
+    const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
+    const s = String(body.randomWindowStart ?? "");
+    const e = String(body.randomWindowEnd ?? "");
+    if (timeRe.test(s) && timeRe.test(e)) {
+      if (s >= e) {
+        return NextResponse.json(
+          { error: "The random-time window must end after it starts" },
+          { status: 400 },
+        );
+      }
+      call.randomWindow = { start: s, end: e };
+    } else {
+      call.randomWindow = undefined; // cleared (or invalid → off)
+    }
+  }
+  // A random window only makes sense on a recurring call.
+  if (!call.recurrence) call.randomWindow = undefined;
   if (body.recordingUrl !== undefined) {
     if (typeof body.recordingUrl === "string" && body.recordingUrl) {
       const url = body.recordingUrl.slice(0, 500);

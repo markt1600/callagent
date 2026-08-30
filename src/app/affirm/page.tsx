@@ -83,6 +83,9 @@ const EMPTY = {
   messageMode: "typed" as "typed" | "generated" | "recorded" | "checkin",
   messageKind: "joke",
   recurrence: "",
+  windowRandom: false,
+  windowStart: "09:00",
+  windowEnd: "17:00",
   callTiming: "now" as "now" | "scheduled",
 };
 
@@ -147,6 +150,9 @@ export default function AffirmPage() {
       messageMode: a.recordingUrl ? "recorded" : a.checkIn ? "checkin" : "typed",
       messageKind: a.messageKind ?? "joke",
       recurrence: a.recurrence ?? "",
+      windowRandom: Boolean(a.randomWindow),
+      windowStart: a.randomWindow?.start ?? "09:00",
+      windowEnd: a.randomWindow?.end ?? "17:00",
       callTiming: "scheduled",
     });
     if (a.recordingUrl) {
@@ -290,6 +296,13 @@ export default function AffirmPage() {
           persona: form.persona,
           longChat: form.messageMode !== "recorded" && form.longChat,
           recurrence: form.recurrence || undefined,
+          // Random-window timing (recurring only). Empty strings clear it on edit.
+          randomWindowStart: form.recurrence
+            ? form.windowRandom
+              ? form.windowStart
+              : ""
+            : undefined,
+          randomWindowEnd: form.recurrence ? (form.windowRandom ? form.windowEnd : "") : undefined,
           recordingUrl,
         }),
       });
@@ -436,6 +449,43 @@ export default function AffirmPage() {
           <option value="monthly">Monthly</option>
           <option value="annual">Annually</option>
         </select>
+        {form.recurrence && (
+          <>
+            <label style={{ margin: "0.8rem 0 0", textTransform: "none", letterSpacing: 0, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", fontFamily: "var(--font-body)", color: "var(--ink)" }}>
+              <input
+                type="checkbox"
+                checked={form.windowRandom}
+                onChange={(e) => setForm({ ...form, windowRandom: e.target.checked })}
+              />
+              Call at a random time within a window (feels more spontaneous)
+            </label>
+            {form.windowRandom && (
+              <>
+                <div className="row" style={{ alignItems: "center" }}>
+                  <input
+                    type="time"
+                    value={form.windowStart}
+                    onChange={(e) => setForm({ ...form, windowStart: e.target.value })}
+                    style={{ flex: "1 1 120px", minWidth: 120 }}
+                  />
+                  <span className="sub" style={{ margin: 0 }}>
+                    to
+                  </span>
+                  <input
+                    type="time"
+                    value={form.windowEnd}
+                    onChange={(e) => setForm({ ...form, windowEnd: e.target.value })}
+                    style={{ flex: "1 1 120px", minWidth: 120 }}
+                  />
+                </div>
+                <p className="sub" style={{ margin: "0.2rem 0 0.6rem" }}>
+                  Each occurrence dials at a fresh random time in this window (their local
+                  time). The time on the date you pick below is ignored.
+                </p>
+              </>
+            )}
+          </>
+        )}
         <label>From (the requester — that&apos;s you)</label>
         <input
           value={form.requesterName}
@@ -622,6 +672,9 @@ export default function AffirmPage() {
                   {!a.recordingUrl && a.longChat ? " · stays to chat" : ""}
                   {a.recurrence
                     ? ` · repeats ${a.recurrence === "annual" ? "annually" : a.recurrence}`
+                    : ""}
+                  {a.randomWindow
+                    ? ` · random ${a.randomWindow.start}–${a.randomWindow.end}`
                     : ""}
                   {a.attempts > 0
                     ? ` · ${a.attempts} attempt${a.attempts > 1 ? "s" : ""}${a.cycle > 1 ? " (day 2)" : ""}`

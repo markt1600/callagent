@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getSessionUser } from "@/lib/auth";
-import { dispatchAffirmationCall, generateAffirmationMessage } from "@/lib/affirm";
+import {
+  dispatchAffirmationCall,
+  firstRandomWindowTime,
+  generateAffirmationMessage,
+} from "@/lib/affirm";
 import { destinationWallClockToUtc } from "@/lib/phone";
 import { getJSON, listJSON, setJSON } from "@/lib/store";
 import type { AffirmationCall, BuddyLanguage, Friend } from "@/lib/types";
@@ -78,6 +82,30 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    const recurrence = ["daily", "monthly", "annual"].includes(body.recurrence)
+      ? (body.recurrence as AffirmationCall["recurrence"])
+      : undefined;
+
+    // Optional (recurring only): call at a RANDOM time inside a destination-
+    // local window each occurrence, e.g. daily somewhere between 09:00–17:00.
+    const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
+    let randomWindow: AffirmationCall["randomWindow"];
+    if (
+      recurrence &&
+      typeof body.randomWindowStart === "string" &&
+      typeof body.randomWindowEnd === "string" &&
+      timeRe.test(body.randomWindowStart) &&
+      timeRe.test(body.randomWindowEnd)
+    ) {
+      if (body.randomWindowStart >= body.randomWindowEnd) {
+        return NextResponse.json(
+          { error: "The random-time window must end after it starts" },
+          { status: 400 },
+        );
+      }
+      randomWindow = { start: body.randomWindowStart, end: body.randomWindowEnd };
+    }
+
     let at: Date | null = null;
     if (body.callNow === true) {
       at = new Date();
@@ -94,6 +122,11 @@ export async function POST(request: NextRequest) {
       }
       if (!at) {
         return NextResponse.json({ error: "Call time must be a valid datetime" }, { status: 400 });
+      }
+      // Random window: the picked time-of-day is replaced with a random one
+      // inside the window on that date (never in the past).
+      if (randomWindow) {
+        at = new Date(firstRandomWindowTime(at.toISOString(), randomWindow, body.phoneNumber));
       }
     }
 
@@ -112,9 +145,8 @@ export async function POST(request: NextRequest) {
       persona: body.persona === "ahbeng" ? "ahbeng" : "standard",
       longChat: body.longChat === true,
       checkIn: checkIn || undefined,
-      recurrence: ["daily", "monthly", "annual"].includes(body.recurrence)
-        ? (body.recurrence as AffirmationCall["recurrence"])
-        : undefined,
+      recurrence,
+      randomWindow,
       callAt: at.toISOString(),
       originalCallAt: at.toISOString(),
       status: "scheduled",
