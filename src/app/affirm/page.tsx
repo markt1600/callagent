@@ -745,6 +745,14 @@ export default function AffirmPage() {
                 “{a.message.length > 140 ? `${a.message.slice(0, 140)}…` : a.message}”
               </div>
             )}
+            {a.status === "scheduled" && a.randomWindow && a.attempts === 0 && (
+              <div className="meta" style={{ marginTop: "0.3rem" }}>
+                🎲 This occurrence&apos;s random draw:{" "}
+                <strong>{formatInDestination(a.callAt, a.phoneNumber)}</strong> (from the{" "}
+                {a.randomWindow.start}–{a.randomWindow.end} window — the next occurrence
+                gets a fresh draw).
+              </div>
+            )}
             {a.status === "scheduled" && a.attempts > 0 && (
               <div className="meta" style={{ marginTop: "0.3rem" }}>
                 ☎️ No answer yet — the agent will try again at{" "}
