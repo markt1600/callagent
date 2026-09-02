@@ -85,6 +85,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
   // A random window only makes sense on a recurring call.
   if (!call.recurrence) call.randomWindow = undefined;
+  // Consecutive-miss streak (drives the escalating sweetheart SMS) — settable
+  // so history from before the counter existed can be seeded.
+  if (body.missedStreak !== undefined) {
+    const n = Number(body.missedStreak);
+    if (!Number.isInteger(n) || n < 0 || n > 999) {
+      return NextResponse.json({ error: "missedStreak must be 0-999" }, { status: 400 });
+    }
+    call.missedStreak = n || undefined;
+  }
   if (body.recordingUrl !== undefined) {
     if (typeof body.recordingUrl === "string" && body.recordingUrl) {
       const url = body.recordingUrl.slice(0, 500);
