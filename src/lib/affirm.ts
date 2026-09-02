@@ -719,6 +719,12 @@ const AHBENG_SMS_SWEET: Record<"en" | "zh", string> = {
   zh: "——Eh，limpeh sibei 爱你的 hor。下次快点接电话啦，我很想跟你讲话 leh。今晚先在你梦里见，不要迟到。",
 };
 
+/** Fallback postscript when she's missed 3+ in a row: worried and a bit sulky. */
+const AHBENG_SMS_SWEET_WORRIED: Record<"en" | "zh", string> = {
+  en: " — Oi, {n} days in a row never pick up already, limpeh sibei worried you know anot? You okay or not? Also hor, a bit buay song lah — you don't want to talk to me issit? Faster call back leh, I miss you.",
+  zh: "——Oi，连续{n}天没接电话了，limpeh sibei 担心你知道吗？你还好吗？而且 hor，有点 buay song 啦——你不想跟我讲话 issit？快点回电啦，我想你 leh。",
+};
+
 /**
  * A recurring call's retries are used up: deliver the message BY SMS (with
  * who it is from) instead of failing silently. Non-fatal.
@@ -756,7 +762,13 @@ async function composeFinalSms(a: AffirmationCall, hasText: boolean): Promise<st
 Requirements:
 - Say we called but couldn't reach them.
 ${hasText ? `- Include this message EXACTLY word for word, in quotes, attributed to ${a.requesterName}: "${a.message}"` : `- ${a.requesterName} asked us to check in on them — say ${a.requesterName} is thinking of them.`}
-${a.sweetheart ? `- End with ONE playful line from "Ah Beng" in gruff-affectionate Singlish ("lah", "leh", "limpeh", "sibei"): he loves them, misses talking to them, and tells them to pick up next time. Cheeky and warm, never soppy.` : ""}
+${
+  !a.sweetheart
+    ? ""
+    : (a.missedStreak ?? 0) > 2
+      ? `- End with ONE line from "Ah Beng" in gruff-affectionate Singlish ("lah", "leh", "limpeh", "sibei"): she has now missed ${a.missedStreak} calls IN A ROW, and it shows — he is getting genuinely WORRIED about her ("oi, ${a.missedStreak} days already leh, you okay anot?") and slightly annoyed/sulky that she is not speaking to him ("you don't want to talk to lim peh issit?"). The worry should feel bigger the higher the number. Still loving and clearly playful underneath — never angry, never heavy guilt-tripping, never frightening.`
+      : `- End with ONE playful line from "Ah Beng" in gruff-affectionate Singlish ("lah", "leh", "limpeh", "sibei"): he loves them, misses talking to them, and tells them to pick up next time. Cheeky and warm, never soppy.`
+}
 - Vary the wording freely — this goes out after every missed call and must read differently each time.
 - Do NOT mention scams, safety, or that you are an AI. No greetings like "Dear".
 - Output ONLY the SMS text — no surrounding quotes, no explanations.`,
@@ -786,8 +798,15 @@ async function sendFinalMessageSms(a: AffirmationCall): Promise<void> {
       body = (templates[a.language ?? "en"] ?? templates.en)
         .replaceAll("{req}", a.requesterName)
         .replaceAll("{msg}", a.message ?? "");
-      // His sweetheart gets a sweet reminder that he wants to talk.
-      if (a.sweetheart) body += AHBENG_SMS_SWEET[a.language === "zh" ? "zh" : "en"];
+      // His sweetheart gets a sweet reminder that he wants to talk — worried
+      // and slightly sulky once she's missed three or more in a row.
+      if (a.sweetheart) {
+        const zh = a.language === "zh" ? "zh" : "en";
+        body +=
+          (a.missedStreak ?? 0) > 2
+            ? AHBENG_SMS_SWEET_WORRIED[zh].replaceAll("{n}", String(a.missedStreak))
+            : AHBENG_SMS_SWEET[zh];
+      }
     }
     await twilioClient().messages.create({ to: a.phoneNumber, from, body });
     a.smsSentAt = new Date().toISOString();
@@ -853,6 +872,7 @@ export async function handleAffirmationNoAnswer(a: AffirmationCall): Promise<voi
       await sendMissedCallSms(a);
       return;
     }
+    a.missedStreak = (a.missedStreak ?? 0) + 1;
     const smsBefore = a.smsSentAt;
     await sendFinalMessageSms(a);
     a.error = `No answer${maxRetries > 0 ? ` after ${maxRetries} retries` : ""} — ${

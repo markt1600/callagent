@@ -397,6 +397,11 @@ export interface AffirmationCall {
    */
   randomWindow?: { start: string; end: string };
   /**
+   * Recurring calls: consecutive occurrences that ended unanswered (reset by
+   * any completed call). Drives Ah Beng's escalating worry in sweetheart SMS.
+   */
+  missedStreak?: number;
+  /**
    * Set while a user-triggered "try again now" dial is in flight: the
    * schedule state to restore if it doesn't connect, so a failed manual
    * attempt never consumes the retry budget or moves the scheduled time.

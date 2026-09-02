@@ -206,6 +206,8 @@ export async function POST(request: NextRequest) {
       // manual retry that connected needs no schedule restore.
       affirmation.error = undefined;
       affirmation.manualRetrySnapshot = undefined;
+      // She picked up — the consecutive-miss streak resets.
+      affirmation.missedStreak = undefined;
       // The listing sorts by latest activity — a completed call rises to
       // the top even if it was scheduled long ago (or recurs).
       affirmation.lastActivityAt = new Date().toISOString();
