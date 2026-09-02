@@ -385,6 +385,8 @@ export interface AffirmationCall {
   announceUrl?: string;
   /** Set once the missed-call heads-up SMS has been sent (max one per call) */
   smsSentAt?: string;
+  /** The text of the most recent SMS sent for this call (shown on the card). */
+  smsBody?: string;
   /**
    * When the conversation the current summary/transcript describes actually
    * happened. Recurring calls reuse this record (callAt moves to the next

@@ -810,6 +810,7 @@ async function sendFinalMessageSms(a: AffirmationCall): Promise<void> {
     }
     await twilioClient().messages.create({ to: a.phoneNumber, from, body });
     a.smsSentAt = new Date().toISOString();
+    a.smsBody = body;
   } catch (err) {
     console.error(`Final message SMS failed for ${a.id} (continuing):`, err);
   }
@@ -833,6 +834,7 @@ async function sendMissedCallSms(a: AffirmationCall): Promise<void> {
       .replaceAll("{num}", from);
     await twilioClient().messages.create({ to: a.phoneNumber, from, body });
     a.smsSentAt = new Date().toISOString();
+    a.smsBody = body;
     await setJSON(`affirm:${a.id}`, a);
   } catch (err) {
     console.error(`Missed-call SMS failed for ${a.id} (continuing):`, err);

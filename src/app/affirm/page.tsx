@@ -773,6 +773,11 @@ export default function AffirmPage() {
                 they were told to look out for the agent&apos;s number.
               </div>
             )}
+            {a.smsBody && (a.smsSentAt || (a.error && /SMS/.test(a.error))) && (
+              <div className="meta" style={{ marginTop: "0.3rem", fontStyle: "italic" }}>
+                💬 The SMS read: &ldquo;{a.smsBody}&rdquo;
+              </div>
+            )}
             {a.summary && (
               <div className="meta" style={{ marginTop: "0.3rem" }}>
                 {a.summaryAt ? (
